@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(dir:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(node tools/validate-structure.js:*)",
+      "Bash(node tools/scan-secrets.js:*)",
+      "WebFetch(domain:docs.bmad-method.org)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:bennycheung.github.io)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:www.adamblackington.com)"
+    ]
+  }
+}

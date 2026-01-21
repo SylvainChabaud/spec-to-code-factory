@@ -1,0 +1,553 @@
+Cahier des charges — Black Box “Spec-to-Code Factory” pour Claude Code
+0) Résumé exécutif
+
+Concevoir un pipeline outillé (agents + hooks + commands + templates) exécuté via Claude Code, permettant de transformer un fichier de besoins humain (requirements.md) en un projet livrable : documentation de conception, planification EPIC/US/Tasks, règles & mémoire Claude Code, code + tests, QA + checklist release — avec un système de gates empêchant toute progression si les prérequis ne sont pas satisfaits.
+
+1) Contexte et existant
+1.1 Repo socle existant (déjà disponible)
+
+Tu disposes d’un repo de démarrage intégrant une hiérarchie de mémoire Claude Code et un outillage minimal :
+
+Hiérarchie mémoire
+
+Mémoire entreprise : dossier .claude/ (hors repo, local à l’entreprise)
+
+Mémoire projet : .claude.md à la racine du projet
+
+Mémoire locale : .claude-local.md à la racine (non commitée)
+
+Mémoire utilisateur : claude.json à la racine (ou équivalent)
+
+Dossier outillage Claude Code (dans le repo)
+
+.claude/hooks/
+
+.claude/commands/
+
+.claude/rules/
+
+.claude/agents/ (optionnel)
+
+1.2 Problème
+
+Le socle est fonctionnel mais reste une boîte noire non guidée :
+il manque un processus industrialisé capable de générer automatiquement et dans le bon ordre :
+
+artefacts de conception (brief/spec/ADR),
+
+planification (epics/us/tasks),
+
+règles & mémoire cohérentes,
+
+implémentation contrôlée “task-by-task”,
+
+validation (tests/QA/checklist) jusqu’à une release.
+
+2) Objectifs
+2.1 Objectif global
+
+Créer une “Spec-to-Code Factory” (pipeline multi-phases) permettant à partir d’un cahier des charges :
+
+de normaliser et compléter le besoin (hypothèses explicites si input imparfait),
+
+de spécifier (fonctionnel + non-fonctionnel + contrats),
+
+de décider (ADR),
+
+de planifier (EPIC → US → Tasks),
+
+de produire (rules/mémoire + code + tests),
+
+de valider (QA, checklist release),
+
+de livrer un repo prêt à exécuter, tester, versionner.
+
+2.2 Principes directeurs (invariants)
+
+No Spec, No Code : aucun code hors scaffolding minimal sans specs + planning validés.
+
+No Task, No Commit : toute implémentation est rattachée à une task.
+
+Traçabilité : chaque décision majeure est documentée (ADR) et chaque task renvoie à US/EPIC.
+
+Anti-dérive agentique : interdiction de “code opportuniste” non prévu au plan.
+
+Qualité mesurable : tests minimaux, lint/typecheck si applicable, scripts reproductibles.
+
+3) Périmètre (V1)
+3.1 Inclus (V1)
+
+Orchestration via Claude Code (commands + hooks + agents)
+
+Génération des docs (brief/spec/ADR/planning/QA/release)
+
+Génération rules/mémoires Claude Code
+
+Implémentation “task-by-task”
+
+Validation de structure (présence/sections) + validation tests
+
+3.2 Exclus (V1)
+
+UI complète de la boîte noire (dashboard)
+
+Génération avancée de maquettes UI (sauf input fourni)
+
+CI/CD complexe (optionnel V2)
+
+Multi-repo orchestration (V2)
+
+4) Utilisateurs cibles et rôles
+4.1 Utilisateur final (demandeur)
+
+Entrepreneur / client / non-tech ou semi-tech
+
+Fournit besoins en langage naturel + contraintes
+
+4.2 Utilisateur opérateur (dev/équipe)
+
+Lance la factory (commands), supervise gates, arbitre conflits
+
+Peut éditer/valider les artefacts à chaque gate si nécessaire
+
+4.3 Rôles internes du pipeline (agents)
+
+INTAKE : normalisation du besoin, clarification, hypothèses
+
+ARCH/SPEC : specs + ADR
+
+PLANNER : EPIC/US/Tasks
+
+RULES/MEMORY : rules + .claude.md
+
+BUILDER : implémentation task-by-task + tests
+
+QA/RELEASE : rapport QA + checklist + release notes
+
+5) Entrées attendues (Inputs)
+5.1 Entrée principale (obligatoire)
+
+input/requirements.md
+
+Contenu minimal attendu (sections imposées) :
+
+Contexte & problème
+
+Objectifs métier (priorisés)
+
+Utilisateurs / personas
+
+Parcours / user journeys
+
+Fonctionnalités attendues (liste priorisée)
+
+Données manipulées (types, sensibilité)
+
+Contraintes non-fonctionnelles (sécurité, RGPD, perf, budget, délais…)
+
+Hors-scope explicite
+
+Critères d’acceptation mesurables
+
+Intégrations externes (si applicable)
+
+Stack / préférences techniques (optionnel)
+
+Qualité attendue (tests, typecheck, lint, doc, etc.)
+
+5.2 Entrées optionnelles
+
+input/adr-initial.md (stack imposée / décisions non négociables)
+
+input/wireframes/* (captures, schémas, liens)
+
+input/api-examples/* (payloads, contrats existants)
+
+Référentiel “entreprise” via mémoire entreprise .claude/ (hors repo)
+
+6) Sorties attendues (Artifacts) + structure du repo
+6.1 Arborescence cible (V1)
+.
+├─ input/
+│  └─ requirements.md
+├─ docs/
+│  ├─ brief.md
+│  ├─ scope.md
+│  ├─ acceptance.md
+│  ├─ specs/
+│  │  ├─ system.md
+│  │  ├─ domain.md
+│  │  └─ api.md
+│  ├─ adr/
+│  │  └─ ADR-0001-*.md
+│  ├─ planning/
+│  │  ├─ epics.md
+│  │  ├─ us/
+│  │  └─ tasks/
+│  ├─ testing/
+│  │  └─ plan.md
+│  ├─ qa/
+│  │  └─ report.md
+│  └─ release/
+│     └─ checklist.md
+├─ .claude.md
+├─ .claude/
+│  ├─ rules/
+│  ├─ commands/
+│  ├─ hooks/
+│  └─ agents/
+├─ src/ (ou app/)
+├─ tests/ (ou __tests__/)
+├─ CHANGELOG.md
+└─ package.json / pyproject.toml / etc.
+
+6.2 Artefacts documentaires minimaux (obligatoires)
+
+Conception
+
+docs/brief.md : besoin reformulé, sans ambiguïtés, hypothèses listées
+
+docs/scope.md : IN / OUT (découpage strict)
+
+docs/acceptance.md : critères mesurables + scénarios clés
+
+docs/specs/system.md : specs fonctionnelles + non-fonctionnelles + contraintes
+
+docs/specs/domain.md : concepts, entités, règles métier, modèle de données
+
+docs/specs/api.md : endpoints/contrats/schemas + erreurs + auth (si applicable)
+
+docs/adr/ADR-0001-*.md : décisions majeures (stack + architecture)
+
+Planification
+
+docs/planning/epics.md
+
+docs/planning/us/*.md
+
+docs/planning/tasks/*.md
+
+Production
+
+.claude.md : conventions, décisions, vision, limites, workflow
+
+.claude/rules/*.md : règles générées et alignées avec ADR + specs
+
+code src/ + tests tests/
+
+docs/testing/plan.md
+
+docs/qa/report.md
+
+docs/release/checklist.md
+
+CHANGELOG.md
+
+6.3 Contrats de contenu (sections imposées)
+
+US (docs/planning/us/US-XXXX.md)
+
+Contexte / valeur
+
+Description
+
+Critères d’acceptation
+
+Edge cases
+
+Stratégie de tests
+
+Impacts (sécurité/RGPD/perf)
+
+Références (specs/ADR)
+
+Task (docs/planning/tasks/TASK-XXXX.md)
+
+Objectif technique
+
+Contexte (US parent)
+
+Fichiers/modules concernés (prévision)
+
+Plan d’implémentation
+
+Definition of Done
+
+Tests attendus (unit/integration/e2e)
+
+Risques / points d’attention
+
+Références (US/specs/ADR)
+
+7) Workflow cible (BMAD)
+Phase A — BREAK (Intake)
+
+Objectif : rendre le besoin exploitable.
+
+Normaliser requirements.md → docs/brief.md
+
+Produire docs/scope.md et docs/acceptance.md
+
+Lister manques + hypothèses explicites (jamais implicites)
+
+Sortie requise pour passer Gate 1
+
+brief + scope + acceptance complets (sections présentes)
+
+Phase B — MODEL (Specs & Architecture)
+
+Objectif : figer le “quoi” + décisions majeures.
+
+Générer specs : system.md, domain.md, api.md
+
+Produire au moins 1 ADR structurant
+
+Sortie requise pour passer Gate 2
+
+specs minimales + ADR-0001 validés
+
+Phase C — ACT (Rules / Memory / Build)
+
+Objectif : encoder les conventions, puis construire.
+
+Générer .claude/rules/* depuis ADR/specs
+
+Mettre à jour .claude.md
+
+Décomposer en epics.md, us/*, tasks/*
+
+Implémenter task-by-task + tests associés
+
+Sortie requise pour passer Gate 3
+
+tasks prêtes (DoD + tests attendus) avant code significatif
+
+Phase D — DEBRIEF (QA / Release)
+
+Objectif : vérifier, documenter, livrer.
+
+Exécuter la stratégie de tests
+
+Produire docs/qa/report.md
+
+Compléter docs/release/checklist.md
+
+Produire CHANGELOG.md
+
+Sortie requise pour passer Gate 5
+
+checklist complétée + tests critiques OK
+
+8) Gates (verrous obligatoires)
+
+Les gates sont bloquants et automatisés (hooks/commands/scripts).
+
+Gate 1 — Brief complet
+
+Bloque l’accès à la phase specs si :
+
+docs/brief.md absent ou incomplet
+
+docs/scope.md absent
+
+docs/acceptance.md absent
+
+Gate 2 — Specs + ADR minimum
+
+Bloque l’accès au planning si :
+
+specs minimales absentes (system.md + domain.md + api.md si applicable)
+
+ADR-0001 absent
+
+Gate 3 — Planning prêt
+
+Bloque l’accès au code “significatif” si :
+
+pas d’EPIC → US → Tasks générés
+
+tâches sans DoD / tests attendus
+
+Gate 4 — Validation tests critiques
+
+Bloque la “validation” si :
+
+tests critiques non présents ou non passants
+
+plan de test manquant
+
+Gate 5 — Release complète
+
+Bloque la livraison si :
+
+checklist release non complétée
+
+QA report absent
+
+changelog absent
+
+Implémentation possible
+
+hooks Claude Code (pré-tool / post-tool)
+
+commands internes (ex: claude gate:check)
+
+scripts (ex: scripts/validate_docs_structure.*) vérifiant présence + sections
+
+9) Contraintes non-fonctionnelles
+9.1 Qualité
+
+Artefacts lisibles, stables, versionnables
+
+Nomination stricte (préfixes US- / TASK- / ADR-)
+
+Conventions de format (Markdown standard, sections obligatoires)
+
+9.2 Traçabilité / audit
+
+Chaque fichier planning renvoie vers ses parents (TASK → US → EPIC)
+
+Les ADR référencent les alternatives et le rationnel
+
+Un journal de génération peut être tenu (ex: docs/factory/log.md) sans contenu sensible
+
+9.3 Sécurité / RGPD
+
+Interdiction d’insérer des données personnelles réelles dans les docs/code générés
+
+Si input sensible : redaction/anonymisation systématique
+
+Option : classification des données (faible/moyenne/élevée) dans docs/specs/system.md
+
+9.4 Robustesse
+
+Input imparfait → hypothèses explicites + liste de questions
+
+Limitation dérives agentiques :
+
+interdiction d’ajouter fonctionnalités non demandées
+
+interdiction de “refactor massif” hors task dédiée
+
+implémentation strictement alignée au plan
+
+10) Hypothèses techniques
+
+Claude Code est l’outil d’exécution principal (agents, hooks, rules)
+
+Le runtime peut lire/écrire les fichiers du repo
+
+V1 sans UI : pilotage via commands + fichiers docs
+
+Le projet cible peut varier (Node/Next, Python, etc.) : la factory doit rester stack-agnostic, avec une ADR initiale pour figer la stack
+
+11) Critères d’acceptation (mesurables)
+
+Le système est conforme si :
+
+Avec input/requirements.md, le pipeline génère automatiquement :
+
+brief + scope + acceptance
+
+specs + ADR
+
+planning (epics/us/tasks)
+
+rules + .claude.md mis à jour
+
+Un projet “démo” end-to-end est produit :
+
+code exécutable (commande run/build)
+
+tests exécutables (commande test)
+
+plan de test + QA report + checklist release
+
+Le gating est effectif :
+
+impossible d’avancer vers le code sans tasks complètes
+
+impossible de “livrer” sans tests critiques + checklist
+
+Structure stable :
+
+mêmes emplacements, mêmes conventions de nommage, mêmes sections attendues
+
+12) Livrables côté dev (ce que tu dois produire)
+12.1 Templates
+
+input/requirements.template.md
+
+templates pour :
+
+docs/brief.md
+
+docs/specs/*.md
+
+docs/adr/ADR-0001-template.md
+
+docs/planning/us/US-template.md
+
+docs/planning/tasks/TASK-template.md
+
+docs/testing/plan.md
+
+docs/qa/report.md
+
+docs/release/checklist.md
+
+12.2 Prompts / Agents
+
+Prompts agents : INTAKE, SPEC/ARCH, PLANNER, RULES/MEMORY, BUILDER, QA/RELEASE
+
+Chaque agent :
+
+prend en entrée des fichiers précis
+
+écrit dans des chemins imposés
+
+respecte les invariants (No Spec No Code, etc.)
+
+12.3 Commands / Hooks (gates)
+
+Commands :
+
+factory:intake
+
+factory:spec
+
+factory:plan
+
+factory:build
+
+factory:qa
+
+gate:check
+
+Hooks :
+
+pré-exécution : vérifie gate requis
+
+post-écriture : vérifie format minimal du fichier généré
+
+12.4 Exemple end-to-end
+
+un projet test (ex: mini API + UI, ou CLI) démontrant :
+
+tous les artefacts produits
+
+un cycle complet “requirements → release”
+
+13) Glossaire (terminologie stable)
+
+Factory : pipeline complet
+
+Artifact : fichier généré (docs, rules, code)
+
+Gate : verrou bloquant automatisé
+
+Scaffolding : création minimaliste de structure projet (avant code métier)
+
+Task-by-task : implémentation strictement rattachée à une task planifiée
+
+ADR : Architecture Decision Record (décision majeure + rationales)

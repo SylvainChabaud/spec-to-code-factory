@@ -1,0 +1,73 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(docs/**)",
+      "Read(input/**)",
+      "Read(.claude/**)",
+      "Read(src/**)",
+      "Read(tests/**)",
+      "Read(templates/**)",
+      "Glob(*)",
+      "Grep(*)",
+      "Bash(node tools/gate-check.js:*)",
+      "Bash(node tools/factory-log.js:*)",
+      "Bash(node tools/validate-structure.js:*)",
+      "Bash(node tools/validate-file-scope.js:*)",
+      "Bash(npm test)",
+      "Bash(npm run test:*)"
+    ],
+    "ask": [
+      "Write(*)",
+      "Edit(*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Bash(rm:*)",
+      "Bash(rm -rf:*)",
+      "Bash(rmdir:*)",
+      "Bash(git push:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(npm install:*)",
+      "Bash(npm publish:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(chmod:*)",
+      "Bash(chown:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pretooluse-security.js" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/posttooluse-validate.js" }]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/posttooluse-validate.js" }]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/stop-gate.js" }]
+      }
+    ]
+  },
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

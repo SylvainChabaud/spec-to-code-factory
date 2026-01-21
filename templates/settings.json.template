@@ -1,0 +1,50 @@
+{
+  "$schema": "https://code.claude.com/schemas/settings.json",
+  "_comment": "Template settings.json pour Claude Code - Voir https://code.claude.com/docs/en/hooks",
+
+  "permissions": {
+    "allow": [
+      "Read(docs/**)",
+      "Glob(*)",
+      "Grep(*)"
+    ],
+    "ask": [
+      "Write(*)",
+      "Edit(*)",
+      "Bash(git *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)"
+    ]
+  },
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "echo 'PreToolUse: Bash'" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [{ "type": "command", "command": "echo 'PostToolUse: Write'" }]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [{ "type": "command", "command": "echo 'PostToolUse: Edit'" }]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "echo 'Session terminée'" }]
+      }
+    ]
+  },
+
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "spec-to-code-factory",
+  "version": "1.0.0",
+  "description": "Pipeline Spec-to-Code pour Claude Code",
+  "type": "module",
+  "scripts": {
+    "gate:check": "node tools/gate-check.js",
+    "validate": "node tools/validate-structure.js",
+    "scan:secrets": "node tools/scan-secrets.js"
+  },
+  "keywords": ["claude-code", "pipeline", "spec-to-code"],
+  "license": "MIT"
+}
