@@ -77,6 +77,30 @@ echo 'node tools/validate-commit-msg.js "$1"' > .git/hooks/commit-msg
 chmod +x .git/hooks/commit-msg
 ```
 
+## Instrumentation (optionnel)
+
+Le pipeline peut tracer tous les événements (tools, gates, agents) pour debugging ou audit.
+
+**Activation** dans `.claude/settings.json` :
+```json
+"env": {
+  "FACTORY_INSTRUMENTATION": "true"
+}
+```
+
+**Commandes** :
+```bash
+node tools/instrumentation/collector.js status   # État
+node tools/instrumentation/collector.js summary  # Résumé des événements
+node tools/instrumentation/collector.js reset    # Réinitialiser
+```
+
+**Output** : `docs/factory/instrumentation.json`
+
+**Configuration centralisée** : `tools/instrumentation/config.js`
+- Namespace `claude.env` pour toutes les variables factory
+- Chargé automatiquement depuis `.claude/settings.json`
+
 ## Validation Code Quality (Gate 4)
 
 Le pipeline inclut une validation stricte du code généré contre les specs :
