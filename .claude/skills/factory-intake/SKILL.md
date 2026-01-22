@@ -14,7 +14,13 @@ Tu es l'orchestrateur de la phase BREAK.
 
 ## Workflow
 
-1. **Vérifier Gate 0** : Vérifier que `input/requirements.md` existe
+1. **Vérifier Gate 0** : Valider `input/requirements.md`
+   ```bash
+   node tools/validate-requirements.js
+   ```
+   - Si exit code = 1 → Fichier manquant, STOP
+   - Si exit code = 2 → Sections manquantes/vides, STOP avec rapport
+   - L'utilisateur DOIT compléter toutes les sections avant de continuer
 
 2. **Informer l'utilisateur** :
    ```

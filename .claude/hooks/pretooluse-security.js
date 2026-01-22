@@ -2,9 +2,25 @@
 /**
  * PreToolUse Hook - Bloque les commandes dangereuses
  * Exit code 2 = bloqué
+ *
+ * Also records tool invocations for instrumentation (when enabled)
  */
 
+import { execSync } from 'child_process';
+import { isEnabled } from '../../tools/instrumentation/config.js';
+
 const input = JSON.parse(process.argv[2] || '{}');
+
+// Instrumentation: record tool invocation (opt-in)
+if (isEnabled()) {
+  try {
+    const data = JSON.stringify({ tool: input.tool, params: input.params });
+    execSync(`node tools/instrumentation/collector.js tool '${data.replace(/'/g, "'\\''")}'`, {
+      stdio: 'ignore',
+      timeout: 1000
+    });
+  } catch (e) { /* silent fail */ }
+}
 
 const BLOCKED_COMMANDS = [
   /rm\s+-rf\s+\//,

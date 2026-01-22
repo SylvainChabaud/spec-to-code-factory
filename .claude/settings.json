@@ -9,6 +9,7 @@
       "Read(templates/**)",
       "Glob(*)",
       "Grep(*)",
+      "Bash(node tools/validate-requirements.js:*)",
       "Bash(node tools/gate-check.js:*)",
       "Bash(node tools/factory-log.js:*)",
       "Bash(node tools/validate-structure.js:*)",
@@ -68,6 +69,7 @@
     ]
   },
   "env": {
-    "NODE_ENV": "development"
+    "NODE_ENV": "development",
+    "FACTORY_INSTRUMENTATION": "false"
   }
 }

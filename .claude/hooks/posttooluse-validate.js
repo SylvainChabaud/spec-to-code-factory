@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { isEnabled } from '../../tools/instrumentation/config.js';
 
 const input = JSON.parse(process.argv[2] || '{}');
 
@@ -112,10 +113,28 @@ function validateScope(filePath) {
   }
 }
 
+// Instrumentation: record file write (opt-in)
+function recordFileWrite(filePath, tool) {
+  if (isEnabled()) {
+    try {
+      const currentTask = fs.existsSync('docs/factory/current-task.txt')
+        ? fs.readFileSync('docs/factory/current-task.txt', 'utf-8').trim()
+        : null;
+      const data = JSON.stringify({ filePath, tool, task: currentTask });
+      execSync(`node tools/instrumentation/collector.js file '${data.replace(/'/g, "'\\''")}'`, {
+        stdio: 'ignore',
+        timeout: 1000
+      });
+    } catch (e) { /* silent fail */ }
+  }
+}
+
 // Main
 if (input.tool === 'Write' || input.tool === 'Edit') {
   const filePath = input.params?.file_path || input.params?.path;
   if (filePath) {
+    // Record file write for instrumentation
+    recordFileWrite(filePath, input.tool);
     // 1. Validate required sections (docs files)
     const sectionResult = validateFile(filePath);
     if (!sectionResult.valid) {

@@ -7,6 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { isEnabled } from './instrumentation/config.js';
 
 const GATES = {
   1: {
@@ -427,6 +428,18 @@ async function checkGate(gateNum) {
     } else {
       console.log('  ✅ Code quality validation PASS (mode STRICT)\n');
     }
+  }
+
+  // Instrumentation: record gate check result (opt-in)
+  if (isEnabled()) {
+    try {
+      const status = errors.length === 0 ? 'PASS' : 'FAIL';
+      const data = JSON.stringify({ gate: gateNum, status, errors });
+      execSync(`node tools/instrumentation/collector.js gate '${data.replace(/'/g, "'\\''")}'`, {
+        stdio: 'ignore',
+        timeout: 1000
+      });
+    } catch (e) { /* silent fail */ }
   }
 
   // Report results

@@ -13,6 +13,7 @@ Gate 1  Gate 2  Gate 3+4  Gate 5
 ### Validations par Gate
 | Gate | Phase | Validations |
 |------|-------|-------------|
+| 0 | →BREAK | **requirements.md complet** (12 sections obligatoires) |
 | 1 | BREAK→MODEL | Fichiers brief/scope/acceptance + **structure projet** |
 | 2 | MODEL→ACT | Specs + ADR + **scan secrets/PII** |
 | 3 | PLAN→BUILD | Epics + US + Tasks avec DoD |
@@ -53,6 +54,7 @@ Gate 1  Gate 2  Gate 3+4  Gate 5
 - `/help` : Affiche l'aide
 
 ## Outils de support
+- `tools/validate-requirements.js` : Validation requirements.md complet (Gate 0)
 - `tools/factory-state.js` : Gestion de l'état machine-readable
 - `tools/factory-reset.js` : Reset des phases
 - `tools/set-current-task.js` : Tracking de la task courante
