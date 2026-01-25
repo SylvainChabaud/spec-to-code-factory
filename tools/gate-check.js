@@ -489,7 +489,8 @@ async function checkGate(gateNum) {
     try {
       const status = errors.length === 0 ? 'PASS' : 'FAIL';
       const data = JSON.stringify({ gate: gateNum, status, errors });
-      execSync(`node tools/instrumentation/collector.js gate '${data.replace(/'/g, "'\\''")}'`, {
+      // Use double quotes for Windows compatibility
+      execSync(`node tools/instrumentation/collector.js gate "${data.replace(/"/g, '\\"')}"`, {
         stdio: 'ignore',
         timeout: 1000
       });

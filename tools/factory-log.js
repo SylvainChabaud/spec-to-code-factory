@@ -56,7 +56,7 @@ ${message ? `- **Message**: ${message}` : ''}
       // Record agent delegation
       if (agent && agent !== 'completed' && agent !== 'started') {
         const agentData = JSON.stringify({ agent: agent.toLowerCase(), source: `factory-${phase.toLowerCase()}` });
-        execSync(`node tools/instrumentation/collector.js agent '${agentData.replace(/'/g, "'\\''")}'`, {
+        execSync(`node tools/instrumentation/collector.js agent "${agentData.replace(/"/g, '\\"')}"`, {
           stdio: 'ignore',
           timeout: 1000
         });
@@ -65,19 +65,19 @@ ${message ? `- **Message**: ${message}` : ''}
       // Record phase event based on status
       if (status === 'PASS' || agent === 'completed') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'PASS', message });
-        execSync(`node tools/instrumentation/collector.js phase-end '${phaseData.replace(/'/g, "'\\''")}'`, {
+        execSync(`node tools/instrumentation/collector.js phase-end "${phaseData.replace(/"/g, '\\"')}"`, {
           stdio: 'ignore',
           timeout: 1000
         });
       } else if (status === 'FAIL') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'FAIL', message });
-        execSync(`node tools/instrumentation/collector.js phase-end '${phaseData.replace(/'/g, "'\\''")}'`, {
+        execSync(`node tools/instrumentation/collector.js phase-end "${phaseData.replace(/"/g, '\\"')}"`, {
           stdio: 'ignore',
           timeout: 1000
         });
       } else if (agent === 'started') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), skill: `factory-${phase.toLowerCase()}` });
-        execSync(`node tools/instrumentation/collector.js phase-start '${phaseData.replace(/'/g, "'\\''")}'`, {
+        execSync(`node tools/instrumentation/collector.js phase-start "${phaseData.replace(/"/g, '\\"')}"`, {
           stdio: 'ignore',
           timeout: 1000
         });
