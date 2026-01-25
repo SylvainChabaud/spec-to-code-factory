@@ -11,6 +11,8 @@
  *   - gate_checked: Gate check completed
  *   - skill_invoked: Skill was invoked
  *   - agent_delegated: Agent delegation via Task tool
+ *   - phase_started: Pipeline phase started
+ *   - phase_completed: Pipeline phase completed
  *
  * Activation:
  *   export FACTORY_INSTRUMENTATION=true
@@ -162,6 +164,32 @@ function recordAgentDelegation(agent, source = null, prompt = null) {
 }
 
 /**
+ * Record a pipeline phase start
+ * @param {string} phase - Phase name (BREAK, MODEL, ACT, DEBRIEF)
+ * @param {string} skill - Skill that started the phase
+ */
+function recordPhaseStarted(phase, skill = null) {
+  return appendEvent('phase_started', {
+    phase: phase.toUpperCase(),
+    skill
+  });
+}
+
+/**
+ * Record a pipeline phase completion
+ * @param {string} phase - Phase name (BREAK, MODEL, ACT, DEBRIEF)
+ * @param {string} status - PASS or FAIL
+ * @param {string} message - Optional message
+ */
+function recordPhaseCompleted(phase, status, message = null) {
+  return appendEvent('phase_completed', {
+    phase: phase.toUpperCase(),
+    status,
+    message
+  });
+}
+
+/**
  * Reset instrumentation data (for new pipeline run)
  */
 function reset() {
@@ -256,6 +284,28 @@ switch (command) {
     }
     break;
 
+  case 'phase-start':
+    // node collector.js phase-start '{"phase":"BREAK","skill":"factory-intake"}'
+    try {
+      const data = JSON.parse(arg1 || '{}');
+      recordPhaseStarted(data.phase, data.skill);
+    } catch (e) {
+      console.error('Invalid JSON data');
+      process.exit(1);
+    }
+    break;
+
+  case 'phase-end':
+    // node collector.js phase-end '{"phase":"BREAK","status":"PASS","message":"Phase completed"}'
+    try {
+      const data = JSON.parse(arg1 || '{}');
+      recordPhaseCompleted(data.phase, data.status, data.message);
+    } catch (e) {
+      console.error('Invalid JSON data');
+      process.exit(1);
+    }
+    break;
+
   case 'reset':
     reset();
     break;
@@ -278,14 +328,16 @@ switch (command) {
     console.log('Usage: node tools/instrumentation/collector.js <command> [data]');
     console.log('');
     console.log('Commands:');
-    console.log('  tool <json>    Record tool invocation');
-    console.log('  file <json>    Record file write');
-    console.log('  gate <json>    Record gate check');
-    console.log('  skill <json>   Record skill invocation');
-    console.log('  agent <json>   Record agent delegation');
-    console.log('  reset          Reset instrumentation data');
-    console.log('  summary        Show event summary');
-    console.log('  status         Show instrumentation status');
+    console.log('  tool <json>        Record tool invocation');
+    console.log('  file <json>        Record file write');
+    console.log('  gate <json>        Record gate check');
+    console.log('  skill <json>       Record skill invocation');
+    console.log('  agent <json>       Record agent delegation');
+    console.log('  phase-start <json> Record phase start');
+    console.log('  phase-end <json>   Record phase completion');
+    console.log('  reset              Reset instrumentation data');
+    console.log('  summary            Show event summary');
+    console.log('  status             Show instrumentation status');
     console.log('');
     console.log('Activation: export FACTORY_INSTRUMENTATION=true');
     process.exit(command ? 1 : 0);
@@ -300,6 +352,8 @@ export {
   recordGateCheck,
   recordSkillInvocation,
   recordAgentDelegation,
+  recordPhaseStarted,
+  recordPhaseCompleted,
   reset,
   getSummary,
   loadData

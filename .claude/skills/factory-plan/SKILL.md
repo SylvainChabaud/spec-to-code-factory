@@ -11,9 +11,19 @@ Tu es l'orchestrateur de la phase planning.
 
 ## Workflow
 
+0. **Instrumentation** (si activée) - Enregistrer le début de phase :
+   ```bash
+   node tools/instrumentation/collector.js phase-start '{"phase":"ACT","skill":"factory-plan"}'
+   node tools/instrumentation/collector.js skill '{"skill":"factory-plan"}'
+   ```
+
 1. **Vérifier Gate 2** : `node tools/gate-check.js 2`
 
 2. **Déléguer à l'agent `scrum-master`** via Task tool :
+   ```bash
+   # Instrumentation (si activée)
+   node tools/instrumentation/collector.js agent '{"agent":"scrum-master","source":"factory-plan"}'
+   ```
    ```
    Task(
      subagent_type: "scrum-master",

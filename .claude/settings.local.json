@@ -15,7 +15,9 @@
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:bennycheung.github.io)",
       "WebFetch(domain:docs.claude.com)",
-      "WebFetch(domain:www.adamblackington.com)"
+      "WebFetch(domain:www.adamblackington.com)",
+      "Bash(test:*)",
+      "Bash(grep:*)"
     ]
   }
 }

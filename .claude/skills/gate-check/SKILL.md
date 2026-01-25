@@ -1,6 +1,6 @@
 ---
 name: gate-check
-description: "Vérifie un gate spécifique (1-5)"
+description: "Vérifie un gate spécifique (0-5)"
 context: fork
 allowed-tools: Read, Glob, Bash
 argument-hint: "[gate-number]"
@@ -11,9 +11,12 @@ argument-hint: "[gate-number]"
 Vérifie le gate spécifié en argument.
 
 ## Usage
-`/gate-check 1` → Vérifie Gate 1
-`/gate-check 2` → Vérifie Gate 2
-...
+`/gate-check 0` → Vérifie Gate 0 (requirements.md)
+`/gate-check 1` → Vérifie Gate 1 (BREAK → MODEL)
+`/gate-check 2` → Vérifie Gate 2 (MODEL → ACT)
+`/gate-check 3` → Vérifie Gate 3 (Planning → Build)
+`/gate-check 4` → Vérifie Gate 4 (Build → QA)
+`/gate-check 5` → Vérifie Gate 5 (QA → Release)
 
 ## Exécution
 ```bash

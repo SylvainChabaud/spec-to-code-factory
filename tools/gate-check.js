@@ -10,6 +10,11 @@ import { execSync } from 'child_process';
 import { isEnabled } from './instrumentation/config.js';
 
 const GATES = {
+  0: {
+    name: '→ BREAK (requirements.md)',
+    files: ['input/requirements.md'],
+    requirementsValidation: true // Valide les 12 sections obligatoires
+  },
   1: {
     name: 'BREAK → MODEL',
     files: [
@@ -200,6 +205,40 @@ function runTests() {
 }
 
 /**
+ * Run requirements.md validation (Gate 0)
+ * Validates that all 12 required sections are present and filled
+ */
+function runRequirementsValidation() {
+  const validatorPath = 'tools/validate-requirements.js';
+
+  if (!fs.existsSync(validatorPath)) {
+    return { success: false, error: 'Validateur requirements non trouvé (tools/validate-requirements.js)' };
+  }
+
+  console.log('  Validating requirements.md (12 sections)...');
+
+  try {
+    execSync('node tools/validate-requirements.js', {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+      timeout: 30000
+    });
+    return { success: true };
+  } catch (error) {
+    // Exit code 1 = file not found, 2 = sections missing/empty
+    return {
+      success: false,
+      error: error.status === 1
+        ? 'Fichier input/requirements.md non trouvé'
+        : 'Sections manquantes ou vides dans requirements.md',
+      stdout: error.stdout,
+      stderr: error.stderr,
+      exitCode: error.status
+    };
+  }
+}
+
+/**
  * Run structure validation (Gate 1)
  * Validates project structure and required directories/files
  */
@@ -312,7 +351,7 @@ async function runCodeQualityValidation() {
 async function checkGate(gateNum) {
   const gate = GATES[gateNum];
   if (!gate) {
-    console.error(`❌ Gate ${gateNum} invalide. Utilisez 1-5.`);
+    console.error(`❌ Gate ${gateNum} invalide. Utilisez 0-5.`);
     process.exit(1);
   }
 
@@ -347,6 +386,21 @@ async function checkGate(gateNum) {
           errors.push(`Section manquante dans ${file}: ${section}`);
         }
       }
+    }
+  }
+
+  // Requirements validation (Gate 0)
+  if (gate.requirementsValidation) {
+    const reqResult = runRequirementsValidation();
+    if (!reqResult.success) {
+      errors.push(`Requirements validation: ${reqResult.error}`);
+      if (reqResult.stdout) {
+        console.log('\n--- Requirements Validation Output ---');
+        console.log(reqResult.stdout.substring(0, 1500));
+        console.log('--------------------------------------\n');
+      }
+    } else {
+      console.log('  ✅ requirements.md valide (12/12 sections)\n');
     }
   }
 
@@ -457,8 +511,8 @@ async function checkGate(gateNum) {
 
 // Main
 const gateNum = parseInt(process.argv[2], 10);
-if (!gateNum) {
-  console.log('Usage: node tools/gate-check.js [1-5]');
+if (isNaN(gateNum) || gateNum < 0 || gateNum > 5) {
+  console.log('Usage: node tools/gate-check.js [0-5]');
   console.log('');
   console.log('Gates:');
   Object.entries(GATES).forEach(([num, gate]) => {

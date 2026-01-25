@@ -14,10 +14,20 @@ Tu es l'orchestrateur de la phase MODEL.
 > ⚠️ **SYNCHRONISATION OBLIGATOIRE** : Chaque étape DOIT être terminée avant de passer à la suivante.
 > Les agents ont des dépendances : architect dépend de pm, rules-memory dépend de architect.
 
+0. **Instrumentation** (si activée) - Enregistrer le début de phase :
+   ```bash
+   node tools/instrumentation/collector.js phase-start '{"phase":"MODEL","skill":"factory-spec"}'
+   node tools/instrumentation/collector.js skill '{"skill":"factory-spec"}'
+   ```
+
 1. **Vérifier Gate 1** : `node tools/gate-check.js 1`
    - Si exit code ≠ 0 → STOP immédiat
 
 2. **Déléguer à l'agent `pm`** via Task tool :
+   ```bash
+   # Instrumentation (si activée)
+   node tools/instrumentation/collector.js agent '{"agent":"pm","source":"factory-spec"}'
+   ```
    ```
    Task(
      subagent_type: "pm",
@@ -29,6 +39,10 @@ Tu es l'orchestrateur de la phase MODEL.
    **✅ Vérifier** : `docs/specs/system.md` ET `docs/specs/domain.md` existent.
 
 3. **Déléguer à l'agent `architect`** via Task tool :
+   ```bash
+   # Instrumentation (si activée)
+   node tools/instrumentation/collector.js agent '{"agent":"architect","source":"factory-spec"}'
+   ```
    ```
    Task(
      subagent_type: "architect",
@@ -40,6 +54,10 @@ Tu es l'orchestrateur de la phase MODEL.
    **✅ Vérifier** : `docs/specs/api.md` ET `docs/adr/ADR-0001-*.md` existent.
 
 4. **Déléguer à l'agent `rules-memory`** via Task tool :
+   ```bash
+   # Instrumentation (si activée)
+   node tools/instrumentation/collector.js agent '{"agent":"rules-memory","source":"factory-spec"}'
+   ```
    ```
    Task(
      subagent_type: "rules-memory",

@@ -11,6 +11,12 @@ Tu es l'orchestrateur de la phase build.
 
 ## Workflow
 
+0. **Instrumentation** (si activée) - Enregistrer le début de phase :
+   ```bash
+   node tools/instrumentation/collector.js phase-start '{"phase":"ACT","skill":"factory-build"}'
+   node tools/instrumentation/collector.js skill '{"skill":"factory-build"}'
+   ```
+
 1. **Vérifier Gate 3** : `node tools/gate-check.js 3`
 
 2. **Lister les tasks** : Glob `docs/planning/tasks/TASK-*.md`
@@ -27,6 +33,10 @@ Tu es l'orchestrateur de la phase build.
       ```
 
    b. **Déléguer à l'agent `developer`** via Task tool :
+      ```bash
+      # Instrumentation (si activée)
+      node tools/instrumentation/collector.js agent '{"agent":"developer","source":"factory-build"}'
+      ```
       ```
       Task(
         subagent_type: "developer",

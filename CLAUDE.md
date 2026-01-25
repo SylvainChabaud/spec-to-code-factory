@@ -5,9 +5,9 @@ Pipeline automatisé qui transforme un requirements.md en projet livrable.
 
 ## Workflow obligatoire
 ```
-BREAK → MODEL → ACT → DEBRIEF
-  │        │       │       │
-Gate 1  Gate 2  Gate 3+4  Gate 5
+       BREAK → MODEL → ACT → DEBRIEF
+  │      │        │       │       │
+Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 ```
 
 ### Validations par Gate
@@ -46,7 +46,7 @@ Gate 1  Gate 2  Gate 3+4  Gate 5
 - `/factory-qa` : Phase DEBRIEF
 - `/factory-run` : Pipeline complet
 - `/factory-resume` : Reprend le pipeline après interruption
-- `/gate-check [1-5]` : Vérifie un gate
+- `/gate-check [0-5]` : Vérifie un gate
 
 ### Commands
 - `/status` : État du pipeline (dashboard détaillé)
@@ -79,7 +79,7 @@ chmod +x .git/hooks/commit-msg
 
 ## Instrumentation (optionnel)
 
-Le pipeline peut tracer tous les événements (tools, gates, agents) pour debugging ou audit.
+Le pipeline peut tracer tous les événements pour debugging ou audit.
 
 **Activation** dans `.claude/settings.json` :
 ```json
@@ -88,14 +88,29 @@ Le pipeline peut tracer tous les événements (tools, gates, agents) pour debugg
 }
 ```
 
+**Événements trackés** :
+| Type | Description | Source |
+|------|-------------|--------|
+| `tool_invocation` | Invocation d'un tool | Hooks PreToolUse |
+| `file_written` | Fichier écrit | Hooks PostToolUse |
+| `gate_checked` | Vérification gate (0-5) | gate-check.js |
+| `skill_invoked` | Skill invoquée | Skills factory-* |
+| `agent_delegated` | Délégation agent | Skills factory-* |
+| `phase_started` | Début de phase | Skills factory-* |
+| `phase_completed` | Fin de phase | factory-log.js |
+
 **Commandes** :
 ```bash
-node tools/instrumentation/collector.js status   # État
-node tools/instrumentation/collector.js summary  # Résumé des événements
-node tools/instrumentation/collector.js reset    # Réinitialiser
+node tools/instrumentation/collector.js status       # État
+node tools/instrumentation/collector.js summary      # Résumé
+node tools/instrumentation/collector.js reset        # Réinitialiser
+node tools/instrumentation/coverage.js              # Couverture pipeline
+node tools/instrumentation/reporter.js              # Rapport markdown
 ```
 
-**Output** : `docs/factory/instrumentation.json`
+**Output** :
+- `docs/factory/instrumentation.json` - Événements (append-only)
+- `docs/factory/coverage-report.md` - Rapport de couverture
 
 **Configuration centralisée** : `tools/instrumentation/config.js`
 - Namespace `claude.env` pour toutes les variables factory

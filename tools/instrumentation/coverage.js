@@ -66,8 +66,11 @@ const KNOWN_ITEMS = {
     'qa'
   ],
 
-  // Gates
-  gates: [1, 2, 3, 4, 5]
+  // Gates (0-5)
+  gates: [0, 1, 2, 3, 4, 5],
+
+  // Pipeline phases
+  phases: ['BREAK', 'MODEL', 'ACT', 'DEBRIEF']
 };
 
 /**
@@ -180,12 +183,27 @@ function extractCheckedGates(events) {
   const checked = new Set();
 
   for (const event of events) {
-    if (event.type === 'gate_checked' && event.data.gate) {
+    if (event.type === 'gate_checked' && event.data.gate !== undefined) {
       checked.add(event.data.gate);
     }
   }
 
   return checked;
+}
+
+/**
+ * Extract completed phases from events
+ */
+function extractCompletedPhases(events) {
+  const completed = new Set();
+
+  for (const event of events) {
+    if (event.type === 'phase_completed' && event.data.phase && event.data.status === 'PASS') {
+      completed.add(event.data.phase.toUpperCase());
+    }
+  }
+
+  return completed;
 }
 
 /**
@@ -205,6 +223,7 @@ function calculateCoverage(data = null) {
   const usedSkills = extractUsedSkills(events);
   const usedAgents = extractUsedAgents(events);
   const checkedGates = extractCheckedGates(events);
+  const completedPhases = extractCompletedPhases(events);
 
   const categories = {
     Tools: {
@@ -245,6 +264,14 @@ function calculateCoverage(data = null) {
       items: {
         checked: Array.from(checkedGates).sort((a, b) => a - b),
         unchecked: KNOWN_ITEMS.gates.filter(g => !checkedGates.has(g))
+      }
+    },
+    Phases: {
+      used: completedPhases.size,
+      total: KNOWN_ITEMS.phases.length,
+      items: {
+        completed: Array.from(completedPhases),
+        pending: KNOWN_ITEMS.phases.filter(p => !completedPhases.has(p))
       }
     }
   };
@@ -299,6 +326,10 @@ function printCoverageSummary(coverage) {
 
   if (coverage.categories.Skills.items.unused?.includes('factory-run')) {
     criticalUnused.push('Main skill factory-run not invoked');
+  }
+
+  if (coverage.categories.Phases.items.pending?.length > 0) {
+    criticalUnused.push(`Phases not completed: ${coverage.categories.Phases.items.pending.join(', ')}`);
   }
 
   if (criticalUnused.length > 0) {

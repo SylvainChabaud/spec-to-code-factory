@@ -2,9 +2,13 @@
 /**
  * Factory Log - Ajoute une entrée au journal
  * Usage: node tools/factory-log.js <phase> <agent> <status> [message]
+ *
+ * Also records to instrumentation (if enabled) for unified tracking.
  */
 
 import fs from 'fs';
+import { execSync } from 'child_process';
+import { isEnabled } from './instrumentation/config.js';
 
 const LOG_FILE = 'docs/factory/log.md';
 
@@ -45,6 +49,41 @@ ${message ? `- **Message**: ${message}` : ''}
 
   fs.appendFileSync(LOG_FILE, entry);
   console.log(`📝 Logged: ${phase} - ${agent} - ${status}`);
+
+  // Also record to instrumentation (if enabled)
+  if (isEnabled()) {
+    try {
+      // Record agent delegation
+      if (agent && agent !== 'completed' && agent !== 'started') {
+        const agentData = JSON.stringify({ agent: agent.toLowerCase(), source: `factory-${phase.toLowerCase()}` });
+        execSync(`node tools/instrumentation/collector.js agent '${agentData.replace(/'/g, "'\\''")}'`, {
+          stdio: 'ignore',
+          timeout: 1000
+        });
+      }
+
+      // Record phase event based on status
+      if (status === 'PASS' || agent === 'completed') {
+        const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'PASS', message });
+        execSync(`node tools/instrumentation/collector.js phase-end '${phaseData.replace(/'/g, "'\\''")}'`, {
+          stdio: 'ignore',
+          timeout: 1000
+        });
+      } else if (status === 'FAIL') {
+        const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'FAIL', message });
+        execSync(`node tools/instrumentation/collector.js phase-end '${phaseData.replace(/'/g, "'\\''")}'`, {
+          stdio: 'ignore',
+          timeout: 1000
+        });
+      } else if (agent === 'started') {
+        const phaseData = JSON.stringify({ phase: phase.toUpperCase(), skill: `factory-${phase.toLowerCase()}` });
+        execSync(`node tools/instrumentation/collector.js phase-start '${phaseData.replace(/'/g, "'\\''")}'`, {
+          stdio: 'ignore',
+          timeout: 1000
+        });
+      }
+    } catch (e) { /* silent fail */ }
+  }
 }
 
 // Main

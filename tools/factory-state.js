@@ -40,6 +40,7 @@ const INITIAL_STATE = {
     debrief: { status: 'pending', gate: null, startedAt: null, completedAt: null }
   },
   gates: {
+    0: { status: 'pending', checkedAt: null, errors: [] },
     1: { status: 'pending', checkedAt: null, errors: [] },
     2: { status: 'pending', checkedAt: null, errors: [] },
     3: { status: 'pending', checkedAt: null, errors: [] },
@@ -220,8 +221,8 @@ function cmdTask(taskId, status) {
 function cmdGate(gateNum, status, errors = []) {
   const state = loadState();
 
-  if (!state.gates[gateNum]) {
-    console.error(`Invalid gate: ${gateNum}. Valid: 1-5`);
+  if (state.gates[gateNum] === undefined) {
+    console.error(`Invalid gate: ${gateNum}. Valid: 0-5`);
     process.exit(1);
   }
 
@@ -300,7 +301,7 @@ switch (command) {
     console.log('  set <key> <value>      Set a value');
     console.log('  phase <name> <status>  Update phase (break|model|plan|build|debrief)');
     console.log('  task <id> <status>     Update task (pending|running|completed|failed)');
-    console.log('  gate <num> <status>    Update gate (1-5)');
+    console.log('  gate <num> <status>    Update gate (0-5)');
     console.log('  init                   Initialize state file');
     console.log('  reset                  Reset to initial state');
     process.exit(command ? 1 : 0);
