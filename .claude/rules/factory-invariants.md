@@ -26,3 +26,11 @@ Chaque TASK référence :
 - Son EPIC
 - Les specs concernées
 - Les ADR applicables
+
+## App Assembly obligatoire
+La dernière task du pipeline DOIT être une task d'assemblage :
+- Nom: `TASK-XXXX-app-assembly.md`
+- Template: `templates/planning/task-assembly-template.md`
+- Générée automatiquement par scrum-master
+- Validée par Gate 4 (`tools/validate-app-assembly.js`)
+- Assemble TOUS les composants/hooks dans `src/App.tsx`

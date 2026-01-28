@@ -53,33 +53,37 @@ ${message ? `- **Message**: ${message}` : ''}
   // Also record to instrumentation (if enabled)
   if (isEnabled()) {
     try {
-      // Record agent delegation
-      if (agent && agent !== 'completed' && agent !== 'started') {
+      const NON_AGENT_VALUES = ['completed', 'started', 'task-done', 'phase-complete'];
+
+      if (agent === 'task-done') {
+        // Emit task_completed (not agent_delegated)
+        const taskData = JSON.stringify({ task: message, status: 'completed' });
+        execSync(`node tools/instrumentation/collector.js task "${taskData.replace(/"/g, '\\"')}"`, {
+          stdio: 'ignore', timeout: 1000
+        });
+      } else if (agent && !NON_AGENT_VALUES.includes(agent)) {
+        // Real agent only
         const agentData = JSON.stringify({ agent: agent.toLowerCase(), source: `factory-${phase.toLowerCase()}` });
         execSync(`node tools/instrumentation/collector.js agent "${agentData.replace(/"/g, '\\"')}"`, {
-          stdio: 'ignore',
-          timeout: 1000
+          stdio: 'ignore', timeout: 1000
         });
       }
 
-      // Record phase event based on status
+      // Phase events
       if (status === 'PASS' || agent === 'completed') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'PASS', message });
         execSync(`node tools/instrumentation/collector.js phase-end "${phaseData.replace(/"/g, '\\"')}"`, {
-          stdio: 'ignore',
-          timeout: 1000
+          stdio: 'ignore', timeout: 1000
         });
       } else if (status === 'FAIL') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'FAIL', message });
         execSync(`node tools/instrumentation/collector.js phase-end "${phaseData.replace(/"/g, '\\"')}"`, {
-          stdio: 'ignore',
-          timeout: 1000
+          stdio: 'ignore', timeout: 1000
         });
       } else if (agent === 'started') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), skill: `factory-${phase.toLowerCase()}` });
         execSync(`node tools/instrumentation/collector.js phase-start "${phaseData.replace(/"/g, '\\"')}"`, {
-          stdio: 'ignore',
-          timeout: 1000
+          stdio: 'ignore', timeout: 1000
         });
       }
     } catch (e) { /* silent fail */ }

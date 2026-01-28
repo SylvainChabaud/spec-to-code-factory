@@ -17,7 +17,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 | 1 | BREAK→MODEL | Fichiers brief/scope/acceptance + **structure projet** |
 | 2 | MODEL→ACT | Specs + ADR + **scan secrets/PII** |
 | 3 | PLAN→BUILD | Epics + US + Tasks avec DoD |
-| 4 | BUILD→QA | Tests passants + **code quality strict** |
+| 4 | BUILD→QA | Tests passants + **code quality strict** + **app assembly** |
 | 5 | QA→RELEASE | QA report + checklist + CHANGELOG |
 
 ## Phases
@@ -62,6 +62,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/validate-code-quality.js` : Validation code vs specs (mode STRICT)
 - `tools/validate-structure.js` : Validation structure projet (Gate 1)
 - `tools/scan-secrets.js` : Scan secrets et PII (Gate 2)
+- `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4)
 
 ## Hook Git optionnel
 
@@ -160,6 +161,7 @@ Les agents utilisent ces templates pour générer des documents conformes :
 | `templates/adr/ADR-template.md` | Architect | `docs/adr/ADR-*.md` |
 | `templates/testing/plan.md` | Scrum Master | `docs/testing/plan.md` |
 | `templates/planning/task-template.md` | Scrum Master | `docs/planning/tasks/TASK-*.md` |
+| `templates/planning/task-assembly-template.md` | Scrum Master | `TASK-XXXX-app-assembly.md` |
 | `templates/rule.md` | Rules-Memory | `.claude/rules/*.md` |
 
 ## Règles par domaine

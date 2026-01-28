@@ -11,6 +11,7 @@
  *   - gate_checked: Gate check completed
  *   - skill_invoked: Skill was invoked
  *   - agent_delegated: Agent delegation via Task tool
+ *   - task_completed: Task implementation completed
  *   - phase_started: Pipeline phase started
  *   - phase_completed: Pipeline phase completed
  *
@@ -164,6 +165,16 @@ function recordAgentDelegation(agent, source = null, prompt = null) {
 }
 
 /**
+ * Record a task completion
+ * @param {string} task - Task identifier (e.g. TASK-0001)
+ * @param {string} status - completed, failed, skipped
+ * @param {string} message - Optional message
+ */
+function recordTaskCompleted(task, status = 'completed', message = null) {
+  return appendEvent('task_completed', { task, status, message });
+}
+
+/**
  * Record a pipeline phase start
  * @param {string} phase - Phase name (BREAK, MODEL, ACT, DEBRIEF)
  * @param {string} skill - Skill that started the phase
@@ -182,6 +193,7 @@ function recordPhaseStarted(phase, skill = null) {
  * @param {string} message - Optional message
  */
 function recordPhaseCompleted(phase, status, message = null) {
+  if (!status) status = 'UNKNOWN';
   return appendEvent('phase_completed', {
     phase: phase.toUpperCase(),
     status,
@@ -224,7 +236,12 @@ function getSummary() {
   };
 }
 
-// CLI interface
+// CLI interface - only run when executed directly (not imported)
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+
+if (process.argv[1] === __filename) {
+
 const command = process.argv[2];
 const arg1 = process.argv[3];
 
@@ -284,6 +301,17 @@ switch (command) {
     }
     break;
 
+  case 'task':
+    // node collector.js task '{"task":"TASK-0001","status":"completed","message":"..."}'
+    try {
+      const data = JSON.parse(arg1 || '{}');
+      recordTaskCompleted(data.task, data.status, data.message);
+    } catch (e) {
+      console.error('Invalid JSON data');
+      process.exit(1);
+    }
+    break;
+
   case 'phase-start':
     // node collector.js phase-start '{"phase":"BREAK","skill":"factory-intake"}'
     try {
@@ -333,6 +361,7 @@ switch (command) {
     console.log('  gate <json>        Record gate check');
     console.log('  skill <json>       Record skill invocation');
     console.log('  agent <json>       Record agent delegation');
+    console.log('  task <json>        Record task completion');
     console.log('  phase-start <json> Record phase start');
     console.log('  phase-end <json>   Record phase completion');
     console.log('  reset              Reset instrumentation data');
@@ -343,6 +372,8 @@ switch (command) {
     process.exit(command ? 1 : 0);
 }
 
+} // end CLI guard
+
 // Export functions for programmatic use
 export {
   isEnabled,
@@ -352,6 +383,7 @@ export {
   recordGateCheck,
   recordSkillInvocation,
   recordAgentDelegation,
+  recordTaskCompleted,
   recordPhaseStarted,
   recordPhaseCompleted,
   reset,

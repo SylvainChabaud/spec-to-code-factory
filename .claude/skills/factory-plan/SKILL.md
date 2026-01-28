@@ -13,8 +13,8 @@ Tu es l'orchestrateur de la phase planning.
 
 0. **Instrumentation** (si activée) - Enregistrer le début de phase :
    ```bash
-   node tools/instrumentation/collector.js phase-start '{"phase":"ACT","skill":"factory-plan"}'
-   node tools/instrumentation/collector.js skill '{"skill":"factory-plan"}'
+   node tools/instrumentation/collector.js phase-start "{\"phase\":\"ACT\",\"skill\":\"factory-plan\"}"
+   node tools/instrumentation/collector.js skill "{\"skill\":\"factory-plan\"}"
    ```
 
 1. **Vérifier Gate 2** : `node tools/gate-check.js 2`
@@ -22,7 +22,7 @@ Tu es l'orchestrateur de la phase planning.
 2. **Déléguer à l'agent `scrum-master`** via Task tool :
    ```bash
    # Instrumentation (si activée)
-   node tools/instrumentation/collector.js agent '{"agent":"scrum-master","source":"factory-plan"}'
+   node tools/instrumentation/collector.js agent "{\"agent\":\"scrum-master\",\"source\":\"factory-plan\"}"
    ```
    ```
    Task(
@@ -58,7 +58,7 @@ Tu es l'orchestrateur de la phase planning.
 
 5. **Logger** via :
    ```bash
-   node tools/factory-log.js "ACT-PLAN" "completed" "Phase planning terminée"
+   node tools/factory-log.js "ACT" "completed" "Phase planning terminee"
    ```
 
 6. **Retourner** un résumé avec liste des tasks créées (numérotées)

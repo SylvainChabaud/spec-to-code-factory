@@ -13,7 +13,7 @@ Tu es l'orchestrateur de reprise du pipeline après une interruption.
 
 ### 0. Instrumentation (si activée)
 ```bash
-node tools/instrumentation/collector.js skill '{"skill":"factory-resume"}'
+node tools/instrumentation/collector.js skill "{\"skill\":\"factory-resume\"}"
 ```
 
 ### 1. Charger l'état actuel

@@ -16,8 +16,8 @@ Tu es l'orchestrateur de la phase BREAK.
 
 0. **Instrumentation** (si activée) - Enregistrer le début de phase :
    ```bash
-   node tools/instrumentation/collector.js phase-start '{"phase":"BREAK","skill":"factory-intake"}'
-   node tools/instrumentation/collector.js skill '{"skill":"factory-intake"}'
+   node tools/instrumentation/collector.js phase-start "{\"phase\":\"BREAK\",\"skill\":\"factory-intake\"}"
+   node tools/instrumentation/collector.js skill "{\"skill\":\"factory-intake\"}"
    ```
 
 1. **Vérifier Gate 0** : Valider `input/requirements.md`
@@ -43,7 +43,7 @@ Tu es l'orchestrateur de la phase BREAK.
 3. **Déléguer à l'agent `analyst`** via Task tool :
    ```bash
    # Instrumentation (si activée)
-   node tools/instrumentation/collector.js agent '{"agent":"analyst","source":"factory-intake"}'
+   node tools/instrumentation/collector.js agent "{\"agent\":\"analyst\",\"source\":\"factory-intake\"}"
    ```
    ```
    Task(

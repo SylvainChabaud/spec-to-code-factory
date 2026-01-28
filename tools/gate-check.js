@@ -59,10 +59,11 @@ const GATES = {
     name: 'Build → QA',
     files: ['docs/testing/plan.md'],
     patterns: [
-      { glob: 'tests/**/*.test.*', min: 1 }
+      { glob: '{tests,src}/**/*.test.*', min: 1 }
     ],
     testsPass: true, // Vérifie que les tests passent
-    codeQuality: true // Vérifie conformité code/specs (mode STRICT)
+    codeQuality: true, // Vérifie conformité code/specs (mode STRICT)
+    appAssembly: true // Vérifie que App.tsx assemble les composants
   },
   5: {
     name: 'QA → Release',
@@ -348,6 +349,50 @@ async function runCodeQualityValidation() {
   }
 }
 
+/**
+ * Run app assembly validation
+ * Validates that App.tsx properly assembles components and hooks
+ */
+function runAppAssemblyValidation() {
+  const validatorPath = 'tools/validate-app-assembly.js';
+
+  if (!fs.existsSync(validatorPath)) {
+    return { success: true, skipped: true };
+  }
+
+  // Check if src/App.tsx exists first
+  if (!fs.existsSync('src/App.tsx')) {
+    return { success: true, skipped: true, reason: 'No src/App.tsx found' };
+  }
+
+  console.log('  Validating app assembly...');
+
+  try {
+    execSync('node tools/validate-app-assembly.js', {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+      timeout: 60000
+    });
+    return { success: true };
+  } catch (error) {
+    // Exit code 1 = file error, 2 = validation failed
+    if (error.status === 2) {
+      return {
+        success: false,
+        error: 'App assembly validation failed - App.tsx is incomplete',
+        stdout: error.stdout,
+        stderr: error.stderr
+      };
+    }
+    return {
+      success: false,
+      error: `App assembly validation error: ${error.message}`,
+      stdout: error.stdout,
+      stderr: error.stderr
+    };
+  }
+}
+
 async function checkGate(gateNum) {
   const gate = GATES[gateNum];
   if (!gate) {
@@ -481,6 +526,24 @@ async function checkGate(gateNum) {
       console.log('  ⚠️  Code quality validation skipped (validateur non trouvé)\n');
     } else {
       console.log('  ✅ Code quality validation PASS (mode STRICT)\n');
+    }
+  }
+
+  // App assembly validation (Gate 4)
+  if (gate.appAssembly) {
+    const assemblyResult = runAppAssemblyValidation();
+    if (!assemblyResult.success && !assemblyResult.skipped) {
+      errors.push(`App assembly validation échouée: ${assemblyResult.error}`);
+      if (assemblyResult.stdout) {
+        console.log('\n--- App Assembly Output ---');
+        console.log(assemblyResult.stdout.substring(0, 2000));
+        console.log('---------------------------\n');
+      }
+    } else if (assemblyResult.skipped) {
+      const reason = assemblyResult.reason || 'validateur non trouvé';
+      console.log(`  ⚠️  App assembly validation skipped (${reason})\n`);
+    } else {
+      console.log('  ✅ App assembly validation PASS\n');
     }
   }
 

@@ -16,8 +16,8 @@ Tu es l'orchestrateur de la phase MODEL.
 
 0. **Instrumentation** (si activée) - Enregistrer le début de phase :
    ```bash
-   node tools/instrumentation/collector.js phase-start '{"phase":"MODEL","skill":"factory-spec"}'
-   node tools/instrumentation/collector.js skill '{"skill":"factory-spec"}'
+   node tools/instrumentation/collector.js phase-start "{\"phase\":\"MODEL\",\"skill\":\"factory-spec\"}"
+   node tools/instrumentation/collector.js skill "{\"skill\":\"factory-spec\"}"
    ```
 
 1. **Vérifier Gate 1** : `node tools/gate-check.js 1`
@@ -26,7 +26,7 @@ Tu es l'orchestrateur de la phase MODEL.
 2. **Déléguer à l'agent `pm`** via Task tool :
    ```bash
    # Instrumentation (si activée)
-   node tools/instrumentation/collector.js agent '{"agent":"pm","source":"factory-spec"}'
+   node tools/instrumentation/collector.js agent "{\"agent\":\"pm\",\"source\":\"factory-spec\"}"
    ```
    ```
    Task(
@@ -41,7 +41,7 @@ Tu es l'orchestrateur de la phase MODEL.
 3. **Déléguer à l'agent `architect`** via Task tool :
    ```bash
    # Instrumentation (si activée)
-   node tools/instrumentation/collector.js agent '{"agent":"architect","source":"factory-spec"}'
+   node tools/instrumentation/collector.js agent "{\"agent\":\"architect\",\"source\":\"factory-spec\"}"
    ```
    ```
    Task(
@@ -56,7 +56,7 @@ Tu es l'orchestrateur de la phase MODEL.
 4. **Déléguer à l'agent `rules-memory`** via Task tool :
    ```bash
    # Instrumentation (si activée)
-   node tools/instrumentation/collector.js agent '{"agent":"rules-memory","source":"factory-spec"}'
+   node tools/instrumentation/collector.js agent "{\"agent\":\"rules-memory\",\"source\":\"factory-spec\"}"
    ```
    ```
    Task(

@@ -27,6 +27,7 @@ const KNOWN_ITEMS = {
     'validate-file-scope.js',
     'validate-code-quality.js',
     'validate-structure.js',
+    'validate-app-assembly.js',
     'scan-secrets.js',
     'validate-commit-msg.js',
     'instrumentation/collector.js'
@@ -70,7 +71,7 @@ const KNOWN_ITEMS = {
   gates: [0, 1, 2, 3, 4, 5],
 
   // Pipeline phases
-  phases: ['BREAK', 'MODEL', 'ACT', 'DEBRIEF']
+  phases: ['BREAK', 'MODEL', 'ACT', 'DEBRIEF', 'PIPELINE']
 };
 
 /**
@@ -341,7 +342,12 @@ function printCoverageSummary(coverage) {
   }
 }
 
-// CLI interface
+// CLI interface - only run when executed directly (not imported)
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+
+if (process.argv[1] === __filename) {
+
 const args = process.argv.slice(2);
 
 if (args.includes('--help')) {
@@ -361,5 +367,7 @@ if (args.includes('--json')) {
 } else {
   printCoverageSummary(coverage);
 }
+
+} // end CLI guard
 
 export { calculateCoverage, KNOWN_ITEMS };

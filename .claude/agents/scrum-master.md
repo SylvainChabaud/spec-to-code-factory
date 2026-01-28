@@ -39,11 +39,19 @@ Décomposer les specs en epics/US/tasks implémentables.
 2. ✓ Identifier les dépendances entre fonctionnalités
 3. ✓ Utiliser les templates pour structurer les outputs :
    - `templates/planning/task-template.md` → `docs/planning/tasks/TASK-XXXX-*.md`
+   - `templates/planning/task-assembly-template.md` → `TASK-XXXX-app-assembly.md` (dernière task)
    - `templates/testing/plan.md` → `docs/testing/plan.md`
 4. ✓ Numéroter les tasks dans l'ordre d'exécution logique
 5. ✓ Chaque TASK doit avoir : objectif, fichiers concernés, DoD, tests attendus
 6. ✓ Vérifier que chaque task est autonome et implémentable
 7. ✓ Créer le plan de test global (`docs/testing/plan.md`)
+8. ✓ **OBLIGATOIRE** : Générer une task finale d'assemblage :
+   - Nom: `TASK-XXXX-app-assembly.md` (numéro = dernier + 1)
+   - Template: `templates/planning/task-assembly-template.md`
+   - Cette task assemble TOUS les composants/hooks dans App.tsx
+   - Remplir les sections {{LISTE_COMPOSANTS}}, {{LISTE_HOOKS}}, {{LISTE_TYPES}}
+   - Décrire le layout depuis `docs/specs/system.md`
+   - La task doit être 100% auto-suffisante (principe BMAD)
 
 ## Règles de nommage
 - `US-XXXX` où XXXX = 0001, 0002, ...

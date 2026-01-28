@@ -113,6 +113,17 @@ function generateEventSequence(data) {
           details += ` (from ${event.data.source})`;
         }
         break;
+      case 'task_completed':
+        details = `Task: ${event.data.task} (${event.data.status})`;
+        break;
+      case 'phase_started':
+        details = `Phase: ${event.data.phase} started`;
+        if (event.data.skill) details += ` (skill: ${event.data.skill})`;
+        break;
+      case 'phase_completed':
+        details = `Phase: ${event.data.phase} ${event.data.status || 'UNKNOWN'}`;
+        if (event.data.message) details += ` | ${event.data.message.substring(0, 50)}`;
+        break;
       default:
         details = JSON.stringify(event.data).substring(0, 80);
     }
@@ -370,10 +381,14 @@ function generateRecommendations(coverage, data) {
     }
   }
 
-  // Check failed gates
+  // Check failed gates (only last status per gate)
+  const lastGateStatus = {};
   for (const event of gateEvents) {
-    if (event.data.status === 'FAIL') {
-      recommendations.push(`Gate ${event.data.gate} failed - review errors before release`);
+    lastGateStatus[event.data.gate] = event.data.status;
+  }
+  for (const [gate, status] of Object.entries(lastGateStatus)) {
+    if (status === 'FAIL') {
+      recommendations.push(`Gate ${gate} failed (last check) - review errors before release`);
     }
   }
 

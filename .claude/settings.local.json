@@ -1,4 +1,7 @@
 {
+  "env": {
+    "FACTORY_INSTRUMENTATION": "true"
+  },
   "permissions": {
     "allow": [
       "WebSearch",

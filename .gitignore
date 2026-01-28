@@ -29,3 +29,6 @@ coverage/
 *.key
 credentials.json
 secrets/
+
+# Factory instrumentation (regenerated at runtime)
+docs/factory/instrumentation.json

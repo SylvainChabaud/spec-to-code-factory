@@ -13,8 +13,8 @@ Tu es l'orchestrateur de la phase build.
 
 0. **Instrumentation** (si activée) - Enregistrer le début de phase :
    ```bash
-   node tools/instrumentation/collector.js phase-start '{"phase":"ACT","skill":"factory-build"}'
-   node tools/instrumentation/collector.js skill '{"skill":"factory-build"}'
+   node tools/instrumentation/collector.js phase-start "{\"phase\":\"ACT\",\"skill\":\"factory-build\"}"
+   node tools/instrumentation/collector.js skill "{\"skill\":\"factory-build\"}"
    ```
 
 1. **Vérifier Gate 3** : `node tools/gate-check.js 3`
@@ -35,7 +35,7 @@ Tu es l'orchestrateur de la phase build.
    b. **Déléguer à l'agent `developer`** via Task tool :
       ```bash
       # Instrumentation (si activée)
-      node tools/instrumentation/collector.js agent '{"agent":"developer","source":"factory-build"}'
+      node tools/instrumentation/collector.js agent "{\"agent\":\"developer\",\"source\":\"factory-build\"}"
       ```
       ```
       Task(
@@ -59,7 +59,12 @@ Tu es l'orchestrateur de la phase build.
 
 4. **Exécuter Gate 4** : `node tools/gate-check.js 4`
 
-5. **Retourner** un résumé des tasks implémentées avec statuts
+5. **Logger** via :
+   ```bash
+   node tools/factory-log.js "ACT" "completed" "Phase BUILD terminee - N tasks implementees"
+   ```
+
+6. **Retourner** un résumé des tasks implémentées avec statuts
 
 ## Règle anti-dérive
 

@@ -15,11 +15,14 @@ Chaque skill a son propre `context: fork` et gère sa délégation d'agent.
 
 ### Initialisation
 ```bash
+# Reset instrumentation pour un timeline propre
+node tools/instrumentation/collector.js reset
+
 # Instrumentation (si activée)
-node tools/instrumentation/collector.js skill '{"skill":"factory-run"}'
+node tools/instrumentation/collector.js skill "{\"skill\":\"factory-run\"}"
 
 # Log démarrage
-node tools/factory-log.js "PIPELINE" "started" "Démarrage du pipeline"
+node tools/factory-log.js "PIPELINE" "started" "Demarrage du pipeline"
 ```
 
 ### Phase 1 - BREAK

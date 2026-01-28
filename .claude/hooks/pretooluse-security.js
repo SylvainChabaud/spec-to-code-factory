@@ -15,7 +15,7 @@ const input = JSON.parse(process.argv[2] || '{}');
 if (isEnabled()) {
   try {
     const data = JSON.stringify({ tool: input.tool, params: input.params });
-    execSync(`node tools/instrumentation/collector.js tool '${data.replace(/'/g, "'\\''")}'`, {
+    execSync(`node tools/instrumentation/collector.js tool "${data.replace(/"/g, '\\"')}"`, {
       stdio: 'ignore',
       timeout: 1000
     });

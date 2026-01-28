@@ -121,7 +121,7 @@ function recordFileWrite(filePath, tool) {
         ? fs.readFileSync('docs/factory/current-task.txt', 'utf-8').trim()
         : null;
       const data = JSON.stringify({ filePath, tool, task: currentTask });
-      execSync(`node tools/instrumentation/collector.js file '${data.replace(/'/g, "'\\''")}'`, {
+      execSync(`node tools/instrumentation/collector.js file "${data.replace(/"/g, '\\"')}"`, {
         stdio: 'ignore',
         timeout: 1000
       });

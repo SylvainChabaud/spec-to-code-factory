@@ -13,8 +13,8 @@ Tu es l'orchestrateur de la phase DEBRIEF.
 
 0. **Instrumentation** (si activée) - Enregistrer le début de phase :
    ```bash
-   node tools/instrumentation/collector.js phase-start '{"phase":"DEBRIEF","skill":"factory-qa"}'
-   node tools/instrumentation/collector.js skill '{"skill":"factory-qa"}'
+   node tools/instrumentation/collector.js phase-start "{\"phase\":\"DEBRIEF\",\"skill\":\"factory-qa\"}"
+   node tools/instrumentation/collector.js skill "{\"skill\":\"factory-qa\"}"
    ```
 
 1. **Vérifier Gate 4** : `node tools/gate-check.js 4`
@@ -22,7 +22,7 @@ Tu es l'orchestrateur de la phase DEBRIEF.
 2. **Déléguer à l'agent `qa`** via Task tool :
    ```bash
    # Instrumentation (si activée)
-   node tools/instrumentation/collector.js agent '{"agent":"qa","source":"factory-qa"}'
+   node tools/instrumentation/collector.js agent "{\"agent\":\"qa\",\"source\":\"factory-qa\"}"
    ```
    ```
    Task(
