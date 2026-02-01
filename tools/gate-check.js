@@ -76,7 +76,8 @@ const GATES = {
       'docs/qa/report.md': ['## Résumé', '## Tests exécutés'],
       'docs/release/checklist.md': ['## Pré-release'],
       'CHANGELOG.md': ['## [']
-    }
+    },
+    exportRelease: true // Export deliverable to release/ folder
   }
 };
 
@@ -91,9 +92,67 @@ function hasSection(filePath, section) {
 }
 
 function globFiles(pattern, sortNumerically = true) {
+  // Handle brace expansion for patterns like {tests,src}/**/*.test.*
+  if (pattern.includes('{') && pattern.includes('}')) {
+    const match = pattern.match(/\{([^}]+)\}/);
+    if (match) {
+      const alternatives = match[1].split(',');
+      let allFiles = [];
+      for (const alt of alternatives) {
+        const expandedPattern = pattern.replace(match[0], alt);
+        allFiles = allFiles.concat(globFiles(expandedPattern, false));
+      }
+      // De-duplicate and sort
+      allFiles = [...new Set(allFiles)];
+      if (sortNumerically) {
+        allFiles.sort((a, b) => {
+          const numA = parseInt((path.basename(a).match(/(\d+)/) || ['0', '0'])[1], 10);
+          const numB = parseInt((path.basename(b).match(/(\d+)/) || ['0', '0'])[1], 10);
+          return numA - numB;
+        });
+      }
+      return allFiles;
+    }
+  }
+
+  // Handle ** glob patterns (recursive search)
+  if (pattern.includes('**')) {
+    const parts = pattern.split('**');
+    const baseDir = parts[0].replace(/[/\\]$/, '') || '.';
+    const filePattern = parts[1]?.replace(/^[/\\]/, '') || '*';
+
+    if (!fs.existsSync(baseDir)) return [];
+
+    const regex = new RegExp('^' + filePattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+
+    let files = [];
+    function walkDir(dir) {
+      if (!fs.existsSync(dir)) return;
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walkDir(fullPath);
+        } else if (regex.test(entry.name)) {
+          files.push(fullPath);
+        }
+      }
+    }
+    walkDir(baseDir);
+
+    if (sortNumerically) {
+      files.sort((a, b) => {
+        const numA = parseInt((path.basename(a).match(/(\d+)/) || ['0', '0'])[1], 10);
+        const numB = parseInt((path.basename(b).match(/(\d+)/) || ['0', '0'])[1], 10);
+        return numA - numB;
+      });
+    }
+    return files;
+  }
+
   // Simple glob implementation for Windows compatibility
   const dir = path.dirname(pattern);
-  const filePattern = path.basename(pattern).replace('*', '.*');
+  const filePattern = path.basename(pattern).replace(/\*/g, '.*');
   const regex = new RegExp(`^${filePattern}$`);
 
   if (!fs.existsSync(dir)) return [];
@@ -393,6 +452,36 @@ function runAppAssemblyValidation() {
   }
 }
 
+/**
+ * Run export release (Gate 5)
+ * Exports deliverable project to release/ folder
+ */
+function runExportRelease() {
+  const exporterPath = 'tools/export-release.js';
+
+  if (!fs.existsSync(exporterPath)) {
+    return { success: true, skipped: true, reason: 'export-release.js not found' };
+  }
+
+  console.log('  Exporting release package...');
+
+  try {
+    const output = execSync('node tools/export-release.js', {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+      timeout: 120000
+    });
+    return { success: true, output };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Export failed: ${error.message}`,
+      stdout: error.stdout,
+      stderr: error.stderr
+    };
+  }
+}
+
 async function checkGate(gateNum) {
   const gate = GATES[gateNum];
   if (!gate) {
@@ -544,6 +633,24 @@ async function checkGate(gateNum) {
       console.log(`  ⚠️  App assembly validation skipped (${reason})\n`);
     } else {
       console.log('  ✅ App assembly validation PASS\n');
+    }
+  }
+
+  // Export release (Gate 5) - only if all validations passed
+  if (gate.exportRelease && errors.length === 0) {
+    const exportResult = runExportRelease();
+    if (!exportResult.success && !exportResult.skipped) {
+      errors.push(`Export release échoué: ${exportResult.error}`);
+      if (exportResult.stdout) {
+        console.log('\n--- Export Output ---');
+        console.log(exportResult.stdout.substring(0, 2000));
+        console.log('---------------------\n');
+      }
+    } else if (exportResult.skipped) {
+      const reason = exportResult.reason || 'export-release.js non trouvé';
+      console.log(`  ⚠️  Export release skipped (${reason})\n`);
+    } else {
+      console.log('  ✅ Release exported to release/ folder\n');
     }
   }
 

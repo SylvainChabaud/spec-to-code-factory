@@ -18,7 +18,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const SETTINGS_PATH = path.join(PROJECT_ROOT, '.claude', 'settings.json');
-const SETTINGS_LOCAL_PATH = path.join(PROJECT_ROOT, '.claude', 'settings.local.json');
 
 /**
  * Namespace claude avec env chargé depuis .claude/settings.json et settings.local.json
@@ -34,14 +33,6 @@ export const claude = {
     try {
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
       claude.env = { ...settings.env };
-    } catch (e) { /* Silent fail */ }
-  }
-
-  // Load settings.local.json (overrides)
-  if (fs.existsSync(SETTINGS_LOCAL_PATH)) {
-    try {
-      const localSettings = JSON.parse(fs.readFileSync(SETTINGS_LOCAL_PATH, 'utf-8'));
-      claude.env = { ...claude.env, ...localSettings.env };
     } catch (e) { /* Silent fail */ }
   }
 })();

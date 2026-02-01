@@ -18,7 +18,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 | 2 | MODEL→ACT | Specs + ADR + **scan secrets/PII** |
 | 3 | PLAN→BUILD | Epics + US + Tasks avec DoD |
 | 4 | BUILD→QA | Tests passants + **code quality strict** + **app assembly** |
-| 5 | QA→RELEASE | QA report + checklist + CHANGELOG |
+| 5 | QA→RELEASE | QA report + checklist + CHANGELOG + **export release** |
 
 ## Phases
 1. **BREAK** : Normaliser le besoin → brief + scope + acceptance
@@ -63,6 +63,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/validate-structure.js` : Validation structure projet (Gate 1)
 - `tools/scan-secrets.js` : Scan secrets et PII (Gate 2)
 - `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4)
+- `tools/export-release.js` : Export du projet livrable (Gate 5)
 
 ## Hook Git optionnel
 
@@ -144,6 +145,38 @@ Le développeur peut implémenter une task SANS connaître les autres tasks.
 Le seul lien entre tasks = les artefacts partagés (specs, code généré).
 
 Template : `templates/planning/task-template.md`
+
+## Export Release (Gate 5)
+
+Le pipeline sépare automatiquement le **projet livrable** de l'**infrastructure factory**.
+
+**Exécution** :
+```bash
+node tools/export-release.js [--output <dir>] [--dry-run] [--validate]
+```
+
+**Méthode** : Exclusion-based (auto-découverte)
+- Tout ce qui n'est PAS factory est exporté automatiquement
+- Pas de liste hardcodée = générique pour tout projet
+
+**Exclusions factory** (toujours exclues) :
+| Type | Contenu |
+|------|---------|
+| Config CC | `.claude/` (agents, skills, rules, settings) |
+| Specs | `docs/` (specs, planning, ADR, QA) |
+| Outils | `tools/`, `templates/`, `input/` |
+| Fichiers | `CLAUDE.md`, `.env`, `package-lock.json` |
+| Générés | `node_modules/`, `dist/`, `coverage/`, `release/` |
+
+**README enrichi** : Généré automatiquement depuis les specs :
+- `docs/brief.md` → Section "À propos"
+- `docs/specs/api.md` → Section "API"
+- `docs/specs/domain.md` → Section "Architecture"
+- `docs/adr/*.md` → Section "Décisions techniques"
+
+**Output** :
+- `release/` : Dossier contenant le projet livrable
+- `release/release-manifest.json` : Traçabilité de l'export
 
 ## Limites (V1)
 - Stack-agnostic (projet cible défini par ADR)
