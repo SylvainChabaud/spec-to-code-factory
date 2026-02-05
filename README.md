@@ -63,6 +63,9 @@ release/  ← Projet livrable (sans infrastructure factory)
 ├── src/                # Code source généré
 ├── tests/              # Tests générés
 ├── tools/              # Outils de validation
+├── templates/
+│   ├── claude-md/      # Templates memoire hierarchique CLAUDE.md
+│   └── ...             # Autres templates (specs, planning, ADR)
 └── .claude/            # Configuration Claude Code
     ├── skills/         # Skills du pipeline
     ├── agents/         # Définitions des agents
@@ -154,6 +157,63 @@ node tools/instrumentation/reporter.js           # Rapport markdown
 
 - `docs/factory/instrumentation.json` - Événements (append-only)
 - `docs/factory/coverage-report.md` - Rapport de couverture
+
+## Memoire hierarchique Claude Code
+
+Le repertoire `templates/claude-md/` fournit un guide complet et des templates pour configurer la **memoire hierarchique** de Claude Code via les fichiers `CLAUDE.md`.
+
+### Principe
+
+Claude Code lit ses instructions depuis plusieurs niveaux de fichiers, du plus global au plus local :
+
+```
+Enterprise Policy        (IT-managed, non modifiable)
+    ↓
+User Preferences         (personnel, tous projets)
+    ↓
+Project CLAUDE.md        (equipe, versionne dans Git)
+    ↓
+Project Rules            (modulaires, par domaine)
+    ↓
+Local Config             (personnel, non versionne)
+```
+
+Chaque niveau herite du precedent et peut le specialiser. Cela permet de combiner politique d'entreprise, preferences personnelles et regles projet.
+
+### Templates disponibles
+
+| Template | Scope | Emplacement cible |
+|----------|-------|--------------------|
+| `CLAUDE-MD-GUIDE.md` | Guide de reference | — (documentation) |
+| `enterprise-template.md` | Organisation | `C:\Program Files\ClaudeCode\CLAUDE.md` |
+| `user-template.md` | Utilisateur | `~/.claude/CLAUDE.md` |
+| `project-template.md` | Projet (equipe) | `./CLAUDE.md` |
+| `rules-template.md` | Regles modulaires | `./.claude/rules/*.md` |
+| `local-template.md` | Dev local | `./CLAUDE.local.md` |
+
+### Utilisation
+
+1. Consultez `templates/claude-md/CLAUDE-MD-GUIDE.md` pour comprendre l'architecture
+2. Copiez le template correspondant a votre besoin vers son emplacement cible
+3. Adaptez les placeholders (`{{VARIABLE}}`) a votre contexte
+
+```bash
+# Exemple : initialiser un CLAUDE.md projet
+cp templates/claude-md/project-template.md ./CLAUDE.md
+
+# Exemple : ajouter une regle modulaire
+cp templates/claude-md/rules-template.md .claude/rules/mon-domaine.md
+```
+
+### Contenu type par niveau
+
+| Niveau | Contenu |
+|--------|---------|
+| Enterprise | Securite, commandes bloquees, compliance RGPD |
+| User | Style de code, outils preferes, workflow Git |
+| Project | Stack technique, structure, conventions equipe |
+| Rules | Regles par domaine (API, tests, TypeScript...) |
+| Local | Branches en cours, ports, notes temporaires |
 
 ## License
 
