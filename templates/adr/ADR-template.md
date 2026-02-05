@@ -90,6 +90,22 @@ Quels critères ont été déterminants ?}}
 
 {{Plan de migration des systèmes existants}}
 
+## Contraintes architecturales (si applicable)
+
+### Structure de dossiers imposée
+
+| Layer | Dossier | Convention de nommage |
+|-------|---------|----------------------|
+| {{Layer}} | `{{src/xxx/}}` | {{PascalCase, suffixe}} |
+
+### Règles d'import
+
+- {{Layer A}} → {{Layer B}} : {{AUTORISÉ/INTERDIT}}
+
+### Patterns structurels imposés
+
+- {{Repository, Factory, UseCase, etc.}}
+
 ## Références
 
 - {{Lien vers documentation externe}}

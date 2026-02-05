@@ -17,7 +17,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 | 1 | BREAK→MODEL | Fichiers brief/scope/acceptance + **structure projet** |
 | 2 | MODEL→ACT | Specs + ADR + **scan secrets/PII** |
 | 3 | PLAN→BUILD | Epics + US + Tasks avec DoD |
-| 4 | BUILD→QA | Tests passants + **code quality strict** + **app assembly** |
+| 4 | BUILD→QA | Tests passants + **code quality strict** + **app assembly** + **boundary check** |
 | 5 | QA→RELEASE | QA report + checklist + CHANGELOG + **export release** |
 
 ## Phases
@@ -63,7 +63,9 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/validate-structure.js` : Validation structure projet (Gate 1)
 - `tools/scan-secrets.js` : Scan secrets et PII (Gate 2)
 - `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4)
+- `tools/validate-boundaries.js` : Validation des règles d'import inter-couches (Gate 4)
 - `tools/export-release.js` : Export du projet livrable (Gate 5)
+- `tools/verify-pipeline.js` : Vérification post-pipeline complète (toutes phases)
 
 ## Hook Git optionnel
 
@@ -176,7 +178,7 @@ node tools/export-release.js [--output <dir>] [--dry-run] [--validate]
 
 **Output** :
 - `release/` : Dossier contenant le projet livrable
-- `release/release-manifest.json` : Traçabilité de l'export
+- `docs/factory/release-manifest.json` : Traçabilité de l'export
 
 ## Limites (V1)
 - Stack-agnostic (projet cible défini par ADR)

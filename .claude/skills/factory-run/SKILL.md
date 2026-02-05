@@ -62,4 +62,32 @@ node tools/factory-log.js "PIPELINE" "completed" "Pipeline terminé avec succès
 - Phases complétées avec statuts
 - Artefacts générés (liste des fichiers créés)
 - Issues détectées (si applicable)
-- Prochaines étapes recommandées
+- Prochaines étapes recommandées :
+
+### Projet livrable
+Informer l'utilisateur que :
+- Le projet livrable se trouve dans **`release/`**
+- Le code existe en double (racine + `release/`) — c'est **intentionnel** :
+  - **Racine** : environnement de travail avec l'infrastructure factory
+  - **`release/`** : projet livrable propre, prêt à être copié
+- Commandes pour récupérer le projet :
+```bash
+# Option 1 : Copier vers un nouveau repo
+cp -r release/ ../mon-projet/
+cd ../mon-projet && git init && npm install
+
+# Option 2 : Tester localement
+cd release && npm install && npm test && npm run build
+```
+
+### Commandes post-pipeline (à suggérer à l'utilisateur)
+```bash
+# Vérification complète du pipeline (38 checks)
+node tools/verify-pipeline.js
+
+# Couverture de l'instrumentation
+node tools/instrumentation/coverage.js
+
+# Rapport détaillé instrumentation (markdown)
+node tools/instrumentation/reporter.js
+```

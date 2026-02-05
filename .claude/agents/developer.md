@@ -52,3 +52,4 @@ Avant de terminer :
 - [ ] DoD complète
 - [ ] Tests passants
 - [ ] Pas de fichiers hors scope modifiés
+- [ ] Règles de dépendance inter-couches respectées (domain n'importe pas infra)

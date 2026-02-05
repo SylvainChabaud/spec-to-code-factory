@@ -63,7 +63,8 @@ const GATES = {
     ],
     testsPass: true, // Vérifie que les tests passent
     codeQuality: true, // Vérifie conformité code/specs (mode STRICT)
-    appAssembly: true // Vérifie que App.tsx assemble les composants
+    appAssembly: true, // Vérifie que App.tsx assemble les composants
+    boundaryCheck: true // Vérifie les règles d'import inter-couches
   },
   5: {
     name: 'QA → Release',
@@ -453,6 +454,50 @@ function runAppAssemblyValidation() {
 }
 
 /**
+ * Run boundary validation (Gate 4)
+ * Validates architectural layer import rules
+ */
+function runBoundaryValidation() {
+  const validatorPath = 'tools/validate-boundaries.js';
+
+  if (!fs.existsSync(validatorPath)) {
+    return { success: true, skipped: true, reason: 'validate-boundaries.js not found' };
+  }
+
+  // Check if src/ exists
+  if (!fs.existsSync('src')) {
+    return { success: true, skipped: true, reason: 'No src/ directory found' };
+  }
+
+  console.log('  Validating architectural boundaries...');
+
+  try {
+    const output = execSync('node tools/validate-boundaries.js', {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+      timeout: 60000
+    });
+    return { success: true, output };
+  } catch (error) {
+    // Exit code 2 = boundary violations found
+    if (error.status === 2) {
+      return {
+        success: false,
+        error: 'Architectural boundary violations detected',
+        stdout: error.stdout,
+        stderr: error.stderr
+      };
+    }
+    return {
+      success: false,
+      error: `Boundary validation error: ${error.message}`,
+      stdout: error.stdout,
+      stderr: error.stderr
+    };
+  }
+}
+
+/**
  * Run export release (Gate 5)
  * Exports deliverable project to release/ folder
  */
@@ -633,6 +678,24 @@ async function checkGate(gateNum) {
       console.log(`  ⚠️  App assembly validation skipped (${reason})\n`);
     } else {
       console.log('  ✅ App assembly validation PASS\n');
+    }
+  }
+
+  // Boundary validation (Gate 4)
+  if (gate.boundaryCheck) {
+    const boundaryResult = runBoundaryValidation();
+    if (!boundaryResult.success && !boundaryResult.skipped) {
+      errors.push(`Boundary validation échouée: ${boundaryResult.error}`);
+      if (boundaryResult.stdout) {
+        console.log('\n--- Boundary Validation Output ---');
+        console.log(boundaryResult.stdout.substring(0, 2000));
+        console.log('----------------------------------\n');
+      }
+    } else if (boundaryResult.skipped) {
+      const reason = boundaryResult.reason || 'validateur non trouvé';
+      console.log(`  ⚠️  Boundary validation skipped (${reason})\n`);
+    } else {
+      console.log('  ✅ Boundary validation PASS\n');
     }
   }
 

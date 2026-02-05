@@ -83,6 +83,16 @@
 ### Fichiers à modifier
 - `src/xxx/existant.ts` (lignes ~XX-YY)
 
+### Alignment architectural
+
+> Référence : docs/adr/ADR-0001-*.md + docs/specs/domain.md#architecture-logicielle
+
+| Fichier | Layer | Concept | Justification |
+|---------|-------|---------|---------------|
+| `{{src/domain/xxx.ts}}` | Domain | Entity | {{Pourquoi}} |
+| `{{src/application/xxx.ts}}` | Application | UseCase | {{Pourquoi}} |
+| `{{src/infrastructure/xxx.ts}}` | Infrastructure | Repository | {{Pourquoi}} |
+
 ---
 
 ## Plan d'implémentation
@@ -109,6 +119,7 @@
 - [ ] Pas de régression sur les tests existants
 - [ ] Code conforme aux specs référencées
 - [ ] Pas de fichiers hors scope modifiés
+- [ ] Règles de dépendance inter-couches respectées
 - [ ] TypeScript compile sans erreur (si applicable)
 - [ ] Linting passe (si applicable)
 
@@ -141,6 +152,7 @@
 | Types TypeScript | Strict | Oui |
 | Conformité API specs | 100% | Oui |
 | Conformité Domain specs | 100% | Oui |
+| Conformité Boundaries | 100% | Oui |
 
 ---
 

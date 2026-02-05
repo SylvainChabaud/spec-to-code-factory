@@ -34,3 +34,10 @@ La dernière task du pipeline DOIT être une task d'assemblage :
 - Générée automatiquement par scrum-master
 - Validée par Gate 4 (`tools/validate-app-assembly.js`)
 - Assemble TOUS les composants/hooks dans `src/App.tsx`
+
+## Boundary Compliance
+Le code généré DOIT respecter les règles de dépendance inter-couches :
+- Domain n'importe JAMAIS Infrastructure ni UI
+- Application n'importe JAMAIS Infrastructure ni UI
+- Infrastructure implémente les ports définis dans Application
+- Vérifié automatiquement par `tools/validate-boundaries.js` au Gate 4

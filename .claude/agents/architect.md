@@ -43,6 +43,8 @@ Produire les specs techniques et les décisions d'architecture.
 4. ✓ Produire au moins 1 ADR (stack/architecture)
 5. ✓ Documenter les alternatives considérées pour chaque décision
 6. ✓ Specs API complètes : endpoints, codes erreur, authentification
+7. ✓ Documenter les contraintes architecturales dans l'ADR stack (section "Contraintes architecturales")
+8. ✓ Définir les règles d'import inter-couches
 
 ## Anti-dérive
 - Ne PAS over-engineer

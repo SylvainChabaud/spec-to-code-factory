@@ -40,6 +40,8 @@ Produire les specs fonctionnelles depuis le brief.
 5. ✓ Utiliser les templates pour structurer les outputs :
    - `templates/specs/system.md` → `docs/specs/system.md`
    - `templates/specs/domain.md` → `docs/specs/domain.md`
+6. ✓ Définir le style architectural et les layers dans domain.md (section "Architecture logicielle")
+7. ✓ Documenter les relations entre bounded contexts
 
 ## Anti-dérive
 - Ne PAS ajouter de features hors scope

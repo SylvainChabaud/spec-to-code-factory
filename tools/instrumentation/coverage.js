@@ -29,7 +29,9 @@ const KNOWN_ITEMS = {
     'validate-structure.js',
     'validate-app-assembly.js',
     'scan-secrets.js',
+    'validate-boundaries.js',
     'validate-commit-msg.js',
+    'verify-pipeline.js',
     'instrumentation/collector.js'
   ],
 

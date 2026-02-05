@@ -88,8 +88,10 @@ node tools/validate-structure.js     # Gate 1 : Valide la structure projet
 node tools/scan-secrets.js           # Gate 2 : Détecte secrets/PII
 node tools/validate-code-quality.js  # Gate 4 : Valide code vs specs
 node tools/validate-app-assembly.js  # Gate 4 : Valide assemblage App.tsx
+node tools/validate-boundaries.js    # Gate 4 : Valide boundaries architecturales
 node tools/export-release.js         # Gate 5 : Exporte le projet livrable
 node tools/gate-check.js [0-5]       # Vérifie un gate complet
+node tools/verify-pipeline.js        # Vérification post-pipeline complète
 ```
 
 ## Export Release

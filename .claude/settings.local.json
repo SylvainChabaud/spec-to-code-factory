@@ -1,7 +1,4 @@
 {
-  "env": {
-    "FACTORY_INSTRUMENTATION": "true"
-  },
   "permissions": {
     "allow": [
       "WebSearch",
@@ -11,7 +8,6 @@
       "Bash(find:*)",
       "Bash(tree:*)",
       "Bash(wc:*)",
-      "Bash(node tools/validate-structure.js:*)",
       "Bash(node tools/scan-secrets.js:*)",
       "WebFetch(domain:docs.bmad-method.org)",
       "WebFetch(domain:medium.com)",

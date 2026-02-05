@@ -78,3 +78,31 @@
 
 1. **{{Nom règle}}** : {{Description détaillée}}
 2. **{{Nom règle}}** : {{Description détaillée}}
+
+## Architecture logicielle
+
+### Style architectural
+
+{{Clean Architecture / Hexagonal / Layered — défini par ADR-0001}}
+
+### Layers et responsabilités
+
+| Layer | Dossier | Responsabilité | Dépendances autorisées |
+|-------|---------|----------------|----------------------|
+| Domain | `src/domain/` | Entités, Value Objects, Domain Services, Events | Aucune dépendance externe |
+| Application | `src/application/` | Use Cases, DTOs, Ports (interfaces) | Domain uniquement |
+| Infrastructure | `src/infrastructure/` | Repositories, APIs externes, DB | Domain + Application |
+| UI/Presentation | `src/components/` ou `src/ui/` | Composants, Controllers | Application (DTOs) |
+
+### Règles de dépendance (BLOQUANT)
+
+- Domain N'IMPORTE JAMAIS Infrastructure ni UI
+- Application N'IMPORTE JAMAIS Infrastructure ni UI
+- Infrastructure IMPLÉMENTE les ports définis dans Application
+- Les imports cross-layer interdits sont vérifiés par Gate 4
+
+### Relations entre Bounded Contexts
+
+| Context Source | Context Cible | Type de relation |
+|---------------|---------------|-----------------|
+| {{Context A}} | {{Context B}} | {{Upstream/Downstream/Conformist/ACL}} |

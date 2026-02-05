@@ -74,7 +74,8 @@ Décomposer les specs en epics/US/tasks implémentables.
 - **Plan d'implémentation** : Étapes ordonnées
 - **Definition of Done** : Checklist complète
 - **Tests attendus** : Liste pour validation automatique
-- **Critères de validation** : Seuils (coverage, types, conformité)
+- **Critères de validation** : Seuils (coverage, types, conformité, boundaries)
+- **Alignment architectural** : Chaque fichier assigné à une layer (Domain/Application/Infrastructure/UI)
 
 ## Ordre d'implémentation
 Numéroter les tasks dans l'ordre d'exécution logique (TASK-0001, TASK-0002...).
