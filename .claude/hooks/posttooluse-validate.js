@@ -8,6 +8,8 @@
  * Validations:
  *   1. Section validation: docs files must have required sections
  *   2. Scope validation: src/tests files must be in current task scope (anti-drift)
+ *
+ * Input: JSON via stdin (Claude Code hooks spec)
  */
 
 import fs from 'fs';
@@ -15,7 +17,27 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { isEnabled } from '../../tools/instrumentation/config.js';
 
-const input = JSON.parse(process.argv[2] || '{}');
+// Read JSON input from stdin (Claude Code hooks pass data via stdin, not argv)
+function readStdin() {
+  return new Promise((resolve) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('readable', () => {
+      let chunk;
+      while ((chunk = process.stdin.read()) !== null) {
+        data += chunk;
+      }
+    });
+    process.stdin.on('end', () => {
+      resolve(data);
+    });
+    // Timeout fallback for non-interactive mode
+    setTimeout(() => resolve(data), 100);
+  });
+}
+
+const stdinData = await readStdin();
+const input = JSON.parse(stdinData || '{}');
 
 const REQUIRED_SECTIONS = {
   'docs/brief.md': ['## Résumé exécutif', '## Hypothèses explicites'],
@@ -129,12 +151,12 @@ function recordFileWrite(filePath, tool) {
   }
 }
 
-// Main
-if (input.tool === 'Write' || input.tool === 'Edit') {
-  const filePath = input.params?.file_path || input.params?.path;
+// Main - use tool_name and tool_input (Claude Code hooks spec)
+if (input.tool_name === 'Write' || input.tool_name === 'Edit') {
+  const filePath = input.tool_input?.file_path || input.tool_input?.path;
   if (filePath) {
     // Record file write for instrumentation
-    recordFileWrite(filePath, input.tool);
+    recordFileWrite(filePath, input.tool_name);
     // 1. Validate required sections (docs files)
     const sectionResult = validateFile(filePath);
     if (!sectionResult.valid) {

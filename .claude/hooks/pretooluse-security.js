@@ -4,17 +4,43 @@
  * Exit code 2 = bloqué
  *
  * Also records tool invocations for instrumentation (when enabled)
+ *
+ * Input: JSON via stdin (Claude Code hooks spec)
  */
 
 import { execSync } from 'child_process';
 import { isEnabled } from '../../tools/instrumentation/config.js';
 
-const input = JSON.parse(process.argv[2] || '{}');
+// Read JSON input from stdin (Claude Code hooks pass data via stdin, not argv)
+function readStdin() {
+  return new Promise((resolve) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('readable', () => {
+      let chunk;
+      while ((chunk = process.stdin.read()) !== null) {
+        data += chunk;
+      }
+    });
+    process.stdin.on('end', () => {
+      resolve(data);
+    });
+    // Timeout fallback for non-interactive mode
+    setTimeout(() => resolve(data), 100);
+  });
+}
+
+const stdinData = await readStdin();
+const input = JSON.parse(stdinData || '{}');
 
 // Instrumentation: record tool invocation (opt-in)
 if (isEnabled()) {
   try {
-    const data = JSON.stringify({ tool: input.tool, params: input.params });
+    const data = JSON.stringify({
+      tool: input.tool_name,
+      params: input.tool_input,
+      agent: null
+    });
     execSync(`node tools/instrumentation/collector.js tool "${data.replace(/"/g, '\\"')}"`, {
       stdio: 'ignore',
       timeout: 1000
@@ -78,13 +104,13 @@ function checkRead(filePath) {
   }
 }
 
-// Main
-if (input.tool === 'Bash' && input.params?.command) {
-  checkBash(input.params.command);
+// Main - use tool_name and tool_input (Claude Code hooks spec)
+if (input.tool_name === 'Bash' && input.tool_input?.command) {
+  checkBash(input.tool_input.command);
 }
 
-if (input.tool === 'Read' && input.params?.file_path) {
-  checkRead(input.params.file_path);
+if (input.tool_name === 'Read' && input.tool_input?.file_path) {
+  checkRead(input.tool_input.file_path);
 }
 
 // Autorisé - structure JSON de confirmation

@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Stop Hook - Rappelle de vérifier les gates
+ * PreToolUse Hook for Skill tool - Track skill invocations
+ * Records when a skill is invoked (factory-intake, factory-spec, etc.)
  *
  * Input: JSON via stdin (Claude Code hooks spec)
+ * Fields: tool_name, tool_input (skill, args)
  */
 
 import { execSync } from 'child_process';
@@ -30,23 +32,26 @@ function readStdin() {
 const stdinData = await readStdin();
 const input = JSON.parse(stdinData || '{}');
 
-// Instrumentation: record stop event (opt-in)
-if (isEnabled()) {
+// Instrumentation: record skill invocation (opt-in)
+if (isEnabled() && input.tool_input?.skill) {
   try {
     const data = JSON.stringify({
-      tool: 'Stop',
-      params: { session_id: input.session_id }
+      skill: input.tool_input.skill,
+      parentSkill: null
     });
-    execSync(`node tools/instrumentation/collector.js tool "${data.replace(/"/g, '\\"')}"`, {
+    execSync(`node tools/instrumentation/collector.js skill "${data.replace(/"/g, '\\"')}"`, {
       stdio: 'ignore',
       timeout: 1000
     });
   } catch (e) { /* silent fail */ }
 }
 
-console.log(`
-💡 Rappel: Avant de continuer, vérifiez le gate approprié:
-   node tools/gate-check.js [1-5]
-`);
-
+// Allow skill to proceed
+console.log(JSON.stringify({
+  continue: true,
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "allow"
+  }
+}));
 process.exit(0);

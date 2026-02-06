@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Stop Hook - Rappelle de vérifier les gates
+ * SubagentStart Hook - Track agent delegations
+ * Records when Claude Code delegates to a subagent (Task tool)
  *
  * Input: JSON via stdin (Claude Code hooks spec)
+ * Fields: session_id, agent_id, agent_type
  */
 
 import { execSync } from 'child_process';
@@ -30,23 +32,27 @@ function readStdin() {
 const stdinData = await readStdin();
 const input = JSON.parse(stdinData || '{}');
 
-// Instrumentation: record stop event (opt-in)
+// Instrumentation: record agent delegation (opt-in)
 if (isEnabled()) {
   try {
     const data = JSON.stringify({
-      tool: 'Stop',
-      params: { session_id: input.session_id }
+      agent: input.agent_type,
+      source: 'subagent-spawn',
+      agentId: input.agent_id
     });
-    execSync(`node tools/instrumentation/collector.js tool "${data.replace(/"/g, '\\"')}"`, {
+    execSync(`node tools/instrumentation/collector.js agent "${data.replace(/"/g, '\\"')}"`, {
       stdio: 'ignore',
       timeout: 1000
     });
   } catch (e) { /* silent fail */ }
 }
 
-console.log(`
-💡 Rappel: Avant de continuer, vérifiez le gate approprié:
-   node tools/gate-check.js [1-5]
-`);
-
+// Allow subagent to proceed
+console.log(JSON.stringify({
+  continue: true,
+  hookSpecificOutput: {
+    hookEventName: "SubagentStart",
+    tracked: true
+  }
+}));
 process.exit(0);

@@ -49,6 +49,18 @@
       {
         "matcher": "Bash",
         "hooks": [{ "type": "command", "command": "node .claude/hooks/pretooluse-security.js" }]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pretooluse-security.js" }]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pretooluse-skill.js" }]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pretooluse-security.js" }]
       }
     ],
     "PostToolUse": [
@@ -59,6 +71,12 @@
       {
         "matcher": "Edit",
         "hooks": [{ "type": "command", "command": "node .claude/hooks/posttooluse-validate.js" }]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/subagentstart-track.js" }]
       }
     ],
     "Stop": [
