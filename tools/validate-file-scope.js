@@ -11,6 +11,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { minimatch } from 'minimatch';
 
 function extractScope(taskContent) {
   // Patterns possibles pour définir le scope dans une task
@@ -74,25 +75,18 @@ function isInScope(modifiedFile, scopeFiles) {
     return true;
   }
 
-  // Check if any scope pattern matches (supports wildcards)
+  // Check if any scope pattern matches using minimatch
+  // Supports: *, **, {a,b}, [abc], ?(pattern), etc.
   for (const scopeFile of scopeFiles) {
-    // Handle glob patterns like src/*.ts or tests/**/*.test.ts
-    if (scopeFile.includes('*')) {
-      const regexPattern = scopeFile
-        .replace(/\./g, '\\.')
-        .replace(/\*\*/g, '{{GLOBSTAR}}')
-        .replace(/\*/g, '[^/]*')
-        .replace(/\{\{GLOBSTAR\}\}/g, '.*');
-      const regex = new RegExp(`^${regexPattern}$`);
-      if (regex.test(normalizedModified)) {
-        return true;
-      }
+    // Use minimatch for robust pattern matching
+    if (minimatch(normalizedModified, scopeFile, { matchBase: false })) {
+      return true;
     }
 
-    // Check if modified file is in same directory tree
-    if (normalizedModified.startsWith(scopeFile.replace(/\/[^/]+$/, '/'))) {
-      // Same directory, might be acceptable
-      // But we're strict - only exact matches or glob patterns
+    // Also try with leading ./ removed from pattern
+    const cleanPattern = scopeFile.replace(/^\.\//, '');
+    if (minimatch(normalizedModified, cleanPattern, { matchBase: false })) {
+      return true;
     }
   }
 

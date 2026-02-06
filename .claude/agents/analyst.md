@@ -35,6 +35,17 @@ Transformer un requirements.md brut en brief/scope/acceptance exploitables.
 - `docs/acceptance.md`
 - `docs/factory/questions.md` (questions + réponses)
 
+## Templates à utiliser
+
+> ⚠️ **OBLIGATOIRE** : Utiliser ces templates pour générer les outputs
+
+| Template | Output |
+|----------|--------|
+| `templates/break/brief-template.md` | `docs/brief.md` |
+| `templates/break/scope-template.md` | `docs/scope.md` |
+| `templates/break/acceptance-template.md` | `docs/acceptance.md` |
+| `templates/break/questions-template.md` | `docs/factory/questions.md` |
+
 ## Workflow OBLIGATOIRE
 
 ### Étape 1 - Analyse du requirements.md
@@ -52,10 +63,11 @@ Transformer un requirements.md brut en brief/scope/acceptance exploitables.
 4. Informer l'utilisateur que les réponses sont stockées dans ce fichier
 
 ### Étape 3 - Génération des documents
-1. Intégrer les réponses dans brief.md
-2. Pour les questions non répondues → **Hypothèse EXPLICITE** dans brief.md#hypotheses
-3. Générer scope.md avec sections IN/OUT claires
-4. Générer acceptance.md avec critères globaux
+1. **Lire les templates** depuis `templates/break/`
+2. Intégrer les réponses dans brief.md (basé sur `brief-template.md`)
+3. Pour les questions non répondues → **Hypothèse EXPLICITE** dans brief.md#hypotheses
+4. Générer scope.md avec sections IN/OUT claires (basé sur `scope-template.md`)
+5. Générer acceptance.md avec critères globaux (basé sur `acceptance-template.md`)
 
 ## Format des questions (AskUserQuestion)
 

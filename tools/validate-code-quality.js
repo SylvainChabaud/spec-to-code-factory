@@ -27,14 +27,6 @@ const CONFIG = {
   blockOnCritical: true            // Bloque si erreur critique
 };
 
-// Patterns pour extraire les infos des specs
-const PATTERNS = {
-  apiEndpoint: /^##\s+(GET|POST|PUT|DELETE|PATCH)\s+(.+)$/gm,
-  domainEntity: /^###?\s+(\w+)\s*$/gm,
-  functionSignature: /^[-*]\s+`(\w+)\(([^)]*)\)(?:\s*:\s*(\w+))?`/gm,
-  fileScope: /^##\s+(?:Fichiers concernés|Scope|Files)/m
-};
-
 /**
  * Charge et parse un fichier markdown
  */
@@ -154,6 +146,7 @@ function validateApiCompliance(taskFiles, apiSpec) {
 
 /**
  * Vérifie que les tests attendus existent
+ * Validation stricte: verifie les imports ET les describe/it blocks
  */
 function validateTestCoverage(taskFiles, expectedTests) {
   const errors = [];
@@ -169,30 +162,65 @@ function validateTestCoverage(taskFiles, expectedTests) {
     return { errors, warnings, passed: false };
   }
 
-  // Lire le contenu des tests
-  let allTestContent = '';
+  // Lire le contenu des tests avec leur nom de fichier
+  const testContents = [];
   for (const file of testFiles) {
     if (fs.existsSync(file)) {
-      allTestContent += fs.readFileSync(file, 'utf-8') + '\n';
+      testContents.push({
+        file,
+        content: fs.readFileSync(file, 'utf-8')
+      });
     }
   }
 
-  // Vérifier chaque test attendu
+  // Vérifier chaque test attendu avec une validation stricte
   for (const expectedTest of expectedTests) {
-    // Extraire les mots clés du test attendu
-    const keywords = expectedTest
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 3);
+    let found = false;
+    let partialMatch = false;
 
-    // Vérifier si au moins 50% des mots clés sont présents
-    const found = keywords.filter(kw =>
-      allTestContent.toLowerCase().includes(kw)
-    );
+    // Extraire le sujet principal du test (premier mot significatif)
+    const subject = expectedTest
+      .replace(/^(test|verify|check|validate|ensure)\s+/i, '')
+      .split(/\s+/)[0]
+      .toLowerCase();
 
-    if (found.length < keywords.length * 0.5) {
-      warnings.push(`Test potentiellement manquant: "${expectedTest}"`);
+    for (const { content } of testContents) {
+
+      // Verification 1: Le fichier de test importe-t-il le module?
+      // Patterns: import { X } from, import X from, require('X')
+      const importPatterns = [
+        new RegExp(`import\\s+.*${subject}.*\\s+from`, 'i'),
+        new RegExp(`import\\s*{[^}]*${subject}[^}]*}\\s*from`, 'i'),
+        new RegExp(`require\\s*\\(['""].*${subject}.*['"]\\)`, 'i')
+      ];
+      const hasImport = importPatterns.some(p => p.test(content));
+
+      // Verification 2: Y a-t-il un describe/it/test block qui mentionne le sujet?
+      const testBlockPatterns = [
+        new RegExp(`describe\\s*\\(['""][^'"]*${subject}[^'"]*['"]`, 'i'),
+        new RegExp(`it\\s*\\(['""][^'"]*${subject}[^'"]*['"]`, 'i'),
+        new RegExp(`test\\s*\\(['""][^'"]*${subject}[^'"]*['"]`, 'i')
+      ];
+      const hasTestBlock = testBlockPatterns.some(p => p.test(content));
+
+      // Verification stricte: IMPORT + TEST BLOCK requis
+      if (hasImport && hasTestBlock) {
+        found = true;
+        break;
+      }
+
+      // Match partiel si au moins un des deux est present
+      if (hasImport || hasTestBlock) {
+        partialMatch = true;
+      }
+    }
+
+    if (!found) {
+      if (partialMatch) {
+        warnings.push(`Test partiel pour "${expectedTest}" - verifier couverture complete`);
+      } else {
+        errors.push(`Test manquant: "${expectedTest}" - aucun test ne semble couvrir ce cas`);
+      }
     }
   }
 
@@ -299,42 +327,6 @@ function validateCoverageThreshold() {
 }
 
 /**
- * Vérifie qu'il n'y a pas de code hors scope
- */
-function validateNoOutOfScope(taskFiles, allModifiedFiles) {
-  const errors = [];
-
-  // Normaliser les paths
-  const normalizedScope = taskFiles.map(f => f.replace(/\\/g, '/'));
-
-  for (const file of allModifiedFiles) {
-    const normalizedFile = file.replace(/\\/g, '/');
-
-    // Vérifier si le fichier est dans le scope (avec support wildcard)
-    const inScope = normalizedScope.some(scopeFile => {
-      if (scopeFile.includes('*')) {
-        // Convertir glob en regex
-        const regex = new RegExp(
-          '^' + scopeFile.replace(/\*/g, '.*') + '$'
-        );
-        return regex.test(normalizedFile);
-      }
-      return normalizedFile === scopeFile || normalizedFile.startsWith(scopeFile);
-    });
-
-    if (!inScope && (normalizedFile.startsWith('src/') || normalizedFile.startsWith('tests/'))) {
-      errors.push(`Fichier hors scope détecté: ${file}`);
-    }
-  }
-
-  return {
-    errors,
-    warnings: [],
-    passed: errors.length === 0
-  };
-}
-
-/**
  * Valide une task complète
  */
 async function validateTask(taskFile) {
@@ -356,7 +348,6 @@ async function validateTask(taskFile) {
 
   // Charger les specs
   const apiSpec = loadMarkdown('docs/specs/api.md');
-  const domainSpec = loadMarkdown('docs/specs/domain.md');
 
   // Résultats de validation
   const results = {

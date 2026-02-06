@@ -32,19 +32,28 @@ Tu es l'orchestrateur de la phase DEBRIEF.
    )
    ```
 
-3. **Vérifier les outputs** :
+3. **Vérifier les outputs QA** :
    - `docs/qa/report.md` existe
    - `docs/release/checklist.md` existe
    - `CHANGELOG.md` existe et est à jour
 
-4. **Exécuter Gate 5** : `node tools/gate-check.js 5`
+4. **Exporter le projet livrable** :
+   ```bash
+   node tools/export-release.js
+   ```
+   Cette commande:
+   - Copie les fichiers du projet (hors infrastructure factory) vers `release/`
+   - Genere un README.md enrichi depuis les specs
+   - Cree un manifest de traçabilite (`docs/factory/release-manifest.json`)
 
-5. **Logger** via :
+5. **Exécuter Gate 5** : `node tools/gate-check.js 5`
+
+6. **Logger** via :
    ```bash
    node tools/factory-log.js "DEBRIEF" "completed" "Phase QA terminée"
    ```
 
-6. **Retourner** le rapport final de release avec :
+7. **Retourner** le rapport final de release avec :
    - Résultat des tests
    - Couverture
    - Issues détectées

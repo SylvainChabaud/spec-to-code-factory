@@ -75,7 +75,7 @@ function generateEventSequence(data) {
   let prevTimestamp = null;
   let eventNum = 0;
 
-  for (const event of data.events.slice(0, 100)) { // Limit to first 100 events
+  for (const event of data.events.slice(0, 500)) { // Limit to first 500 events
     eventNum++;
     const timestamp = new Date(event.timestamp);
     const timeStr = timestamp.toTimeString().substring(0, 8);

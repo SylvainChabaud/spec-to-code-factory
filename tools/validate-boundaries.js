@@ -72,21 +72,47 @@ function getFileLayer(filePath) {
 
 /**
  * Extrait les imports d'un fichier TypeScript/JavaScript
+ * Supporte: import X, import { X }, import * as X, import type, require, dynamic import
  */
 function extractImports(content) {
   const imports = [];
 
-  // import ... from '...'
-  const importRegex = /import\s+(?:(?:[\w*{}\s,]+)\s+from\s+)?['"]([^'"]+)['"]/g;
+  // Fonction helper pour calculer le numero de ligne
+  const getLineNumber = (index) => content.substring(0, index).split('\n').length;
+
+  // 1. import default: import X from '...'
+  // 2. import named: import { X, Y } from '...'
+  // 3. import namespace: import * as X from '...'
+  // 4. import type: import type { X } from '...'
+  // 5. import side-effect: import '...'
+  const importRegex = /import\s+(?:type\s+)?(?:(?:[\w*{}\s,]+)\s+from\s+)?['"]([^'"]+)['"]/g;
   let match;
   while ((match = importRegex.exec(content)) !== null) {
-    imports.push({ path: match[1], line: content.substring(0, match.index).split('\n').length });
+    imports.push({ path: match[1], line: getLineNumber(match.index), type: 'import' });
   }
 
-  // require('...')
+  // 6. require('...') - CommonJS
   const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   while ((match = requireRegex.exec(content)) !== null) {
-    imports.push({ path: match[1], line: content.substring(0, match.index).split('\n').length });
+    imports.push({ path: match[1], line: getLineNumber(match.index), type: 'require' });
+  }
+
+  // 7. require.resolve('...') - Path resolution
+  const requireResolveRegex = /require\.resolve\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  while ((match = requireResolveRegex.exec(content)) !== null) {
+    imports.push({ path: match[1], line: getLineNumber(match.index), type: 'require.resolve' });
+  }
+
+  // 8. Dynamic import: import('...')
+  const dynamicImportRegex = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  while ((match = dynamicImportRegex.exec(content)) !== null) {
+    imports.push({ path: match[1], line: getLineNumber(match.index), type: 'dynamic' });
+  }
+
+  // 9. export ... from '...' (re-exports)
+  const reExportRegex = /export\s+(?:[\w*{}\s,]+)\s+from\s+['"]([^'"]+)['"]/g;
+  while ((match = reExportRegex.exec(content)) !== null) {
+    imports.push({ path: match[1], line: getLineNumber(match.index), type: 'reexport' });
   }
 
   return imports;
@@ -94,13 +120,31 @@ function extractImports(content) {
 
 /**
  * Détermine la layer cible d'un import
+ * @param {string} importPath - Le chemin d'import (peut être relatif ou absolu)
+ * @param {string} sourceFilePath - Le fichier source contenant l'import (pour résoudre les chemins relatifs)
  */
-function getImportTargetLayer(importPath) {
+function getImportTargetLayer(importPath, sourceFilePath = null) {
+  // D'abord, essayer la détection par patterns (pour les imports absolus et alias)
   for (const [layerName, patterns] of Object.entries(LAYER_IMPORT_PATTERNS)) {
     if (patterns.some(p => p.test(`'${importPath}'`))) {
       return layerName;
     }
   }
+
+  // Si c'est un import relatif et qu'on a le fichier source, résoudre le chemin
+  if (sourceFilePath && (importPath.startsWith('./') || importPath.startsWith('../'))) {
+    const sourceDir = path.dirname(sourceFilePath);
+    const resolvedPath = path.resolve(sourceDir, importPath);
+    const normalizedResolved = resolvedPath.replace(/\\/g, '/');
+
+    // Vérifier si le chemin résolu pointe vers un layer
+    for (const [layerName, rule] of Object.entries(LAYER_RULES)) {
+      if (rule.patterns.some(p => p.test(normalizedResolved))) {
+        return layerName;
+      }
+    }
+  }
+
   return null; // Import externe (npm) ou non-layer
 }
 
@@ -137,7 +181,7 @@ function validateFile(filePath, verbose = false) {
   const violations = [];
 
   for (const imp of imports) {
-    const targetLayer = getImportTargetLayer(imp.path);
+    const targetLayer = getImportTargetLayer(imp.path, filePath);
     if (!targetLayer) continue; // Import npm ou non-layer
 
     if (!rule.allowedImports.includes(targetLayer)) {

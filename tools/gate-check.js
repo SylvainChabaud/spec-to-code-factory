@@ -7,6 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { minimatch } from 'minimatch';
 import { isEnabled } from './instrumentation/config.js';
 
 const GATES = {
@@ -92,81 +93,51 @@ function hasSection(filePath, section) {
   return content.includes(section);
 }
 
+/**
+ * Glob files using minimatch for robust pattern matching
+ * Supports: *, **, {a,b}, [abc], ?(pattern), etc.
+ */
 function globFiles(pattern, sortNumerically = true) {
-  // Handle brace expansion for patterns like {tests,src}/**/*.test.*
-  if (pattern.includes('{') && pattern.includes('}')) {
-    const match = pattern.match(/\{([^}]+)\}/);
-    if (match) {
-      const alternatives = match[1].split(',');
-      let allFiles = [];
-      for (const alt of alternatives) {
-        const expandedPattern = pattern.replace(match[0], alt);
-        allFiles = allFiles.concat(globFiles(expandedPattern, false));
-      }
-      // De-duplicate and sort
-      allFiles = [...new Set(allFiles)];
-      if (sortNumerically) {
-        allFiles.sort((a, b) => {
-          const numA = parseInt((path.basename(a).match(/(\d+)/) || ['0', '0'])[1], 10);
-          const numB = parseInt((path.basename(b).match(/(\d+)/) || ['0', '0'])[1], 10);
-          return numA - numB;
-        });
-      }
-      return allFiles;
-    }
-  }
+  const files = [];
 
-  // Handle ** glob patterns (recursive search)
-  if (pattern.includes('**')) {
-    const parts = pattern.split('**');
-    const baseDir = parts[0].replace(/[/\\]$/, '') || '.';
-    const filePattern = parts[1]?.replace(/^[/\\]/, '') || '*';
+  // Determine base directory from pattern
+  const patternParts = pattern.split(/[*?{[]/);
+  const baseDir = patternParts[0].replace(/[/\\]$/, '') || '.';
 
-    if (!fs.existsSync(baseDir)) return [];
+  if (!fs.existsSync(baseDir)) return [];
 
-    const regex = new RegExp('^' + filePattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
-
-    let files = [];
-    function walkDir(dir) {
-      if (!fs.existsSync(dir)) return;
+  // Recursively collect all files from base directory
+  function walkDir(dir) {
+    if (!fs.existsSync(dir)) return;
+    try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
+        // Skip node_modules and .git
+        if (entry.name === 'node_modules' || entry.name === '.git') continue;
+
         if (entry.isDirectory()) {
           walkDir(fullPath);
-        } else if (regex.test(entry.name)) {
-          files.push(fullPath);
+        } else {
+          // Normalize path separators for matching
+          const normalizedPath = fullPath.replace(/\\/g, '/');
+          if (minimatch(normalizedPath, pattern, { matchBase: false })) {
+            files.push(fullPath);
+          }
         }
       }
+    } catch (e) {
+      // Ignore permission errors
     }
-    walkDir(baseDir);
-
-    if (sortNumerically) {
-      files.sort((a, b) => {
-        const numA = parseInt((path.basename(a).match(/(\d+)/) || ['0', '0'])[1], 10);
-        const numB = parseInt((path.basename(b).match(/(\d+)/) || ['0', '0'])[1], 10);
-        return numA - numB;
-      });
-    }
-    return files;
   }
 
-  // Simple glob implementation for Windows compatibility
-  const dir = path.dirname(pattern);
-  const filePattern = path.basename(pattern).replace(/\*/g, '.*');
-  const regex = new RegExp(`^${filePattern}$`);
-
-  if (!fs.existsSync(dir)) return [];
-
-  let files = fs.readdirSync(dir, { recursive: true })
-    .filter(f => regex.test(path.basename(f)))
-    .map(f => path.join(dir, f));
+  walkDir(baseDir);
 
   // Sort numerically by extracting number from filename (e.g., TASK-0001 → 1)
   if (sortNumerically) {
     files.sort((a, b) => {
-      const numA = parseInt((path.basename(a).match(/(\d+)/) || ['0', '0'])[1], 10);
-      const numB = parseInt((path.basename(b).match(/(\d+)/) || ['0', '0'])[1], 10);
+      const numA = parseInt((path.basename(a).match(/(?:TASK|US|ADR)-(\d+)/) || path.basename(a).match(/(\d+)/) || ['0', '0'])[1], 10);
+      const numB = parseInt((path.basename(b).match(/(?:TASK|US|ADR)-(\d+)/) || path.basename(b).match(/(\d+)/) || ['0', '0'])[1], 10);
       return numA - numB;
     });
   }
@@ -236,33 +207,6 @@ async function runTestsWithRetry(maxRetries = 3, delayMs = 2000) {
     stderr: lastError?.stderr,
     retries: maxRetries - 1
   };
-}
-
-// Sync wrapper for backward compatibility
-function runTests() {
-  // For sync usage, use a simpler approach without retry
-  const packageJsonPath = 'package.json';
-  if (!fs.existsSync(packageJsonPath)) {
-    return { success: false, error: 'package.json not found' };
-  }
-
-  try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-    if (!packageJson.scripts?.test) {
-      return { success: false, error: 'No test script defined in package.json' };
-    }
-
-    console.log('  Running tests...');
-    execSync('npm test', { stdio: 'pipe', encoding: 'utf-8' });
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: `Tests failed: ${error.message}`,
-      stdout: error.stdout,
-      stderr: error.stderr
-    };
-  }
 }
 
 /**
@@ -350,16 +294,27 @@ function runSecretsScan() {
     });
     return { success: true };
   } catch (error) {
-    // Exit code 2 = critical secrets found
+    // Exit codes:
+    // 1 = PII warnings (bloquant pour garantir la conformite RGPD)
+    // 2 = Secrets critiques (toujours bloquant)
     if (error.status === 2) {
       return {
         success: false,
-        error: 'CRITICAL: Secrets or PII detected in code',
+        error: 'CRITICAL: Secrets detectes dans le code',
         stdout: error.stdout,
-        stderr: error.stderr
+        stderr: error.stderr,
+        severity: 'critical'
+      };
+    } else if (error.status === 1) {
+      return {
+        success: false,
+        error: 'WARNING: PII potentiels detectes - verifier conformite RGPD',
+        stdout: error.stdout,
+        stderr: error.stderr,
+        severity: 'warning'
       };
     }
-    return { success: true }; // Warnings only
+    return { success: false, error: `Scan error: ${error.message}` };
   }
 }
 

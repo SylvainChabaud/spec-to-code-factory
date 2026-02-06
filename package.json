@@ -9,5 +9,8 @@
     "scan:secrets": "node tools/scan-secrets.js"
   },
   "keywords": ["claude-code", "pipeline", "spec-to-code"],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "minimatch": "^9.0.0"
+  }
 }

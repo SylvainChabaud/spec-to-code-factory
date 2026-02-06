@@ -18,12 +18,14 @@ const INSTRUMENTATION_FILE = 'docs/factory/instrumentation.json';
  * Used to calculate coverage percentages
  */
 const KNOWN_ITEMS = {
-  // Factory tools
+  // Factory tools (16 total)
   tools: [
     'factory-state.js',
     'factory-reset.js',
+    'factory-log.js',
     'gate-check.js',
     'set-current-task.js',
+    'validate-requirements.js',
     'validate-file-scope.js',
     'validate-code-quality.js',
     'validate-structure.js',
@@ -32,18 +34,34 @@ const KNOWN_ITEMS = {
     'validate-boundaries.js',
     'validate-commit-msg.js',
     'verify-pipeline.js',
+    'export-release.js',
     'instrumentation/collector.js'
   ],
 
-  // Templates
+  // Templates (18 total)
   templates: [
+    // Phase BREAK (Analyst)
+    'templates/break/brief-template.md',
+    'templates/break/scope-template.md',
+    'templates/break/acceptance-template.md',
+    'templates/break/questions-template.md',
+    // Phase MODEL (PM, Architect, Rules-Memory)
     'templates/specs/system.md',
     'templates/specs/domain.md',
     'templates/specs/api.md',
     'templates/adr/ADR-template.md',
-    'templates/testing/plan.md',
+    'templates/rule.md',
+    // Phase ACT-PLAN (Scrum Master)
+    'templates/planning/epics-template.md',
+    'templates/planning/US-template.md',
     'templates/planning/task-template.md',
-    'templates/rule.md'
+    'templates/planning/task-assembly-template.md',
+    'templates/testing/plan.md',
+    // Phase DEBRIEF (QA)
+    'templates/qa/report-template.md',
+    'templates/release/checklist-template.md',
+    'templates/release/CHANGELOG-template.md',
+    'templates/release/README.template.md'
   ],
 
   // Skills (workflows)
@@ -72,8 +90,9 @@ const KNOWN_ITEMS = {
   // Gates (0-5)
   gates: [0, 1, 2, 3, 4, 5],
 
-  // Pipeline phases
-  phases: ['BREAK', 'MODEL', 'ACT', 'DEBRIEF', 'PIPELINE']
+  // Pipeline phases (alignés avec factory-state.js)
+  // Note: ACT est subdivisé en 'plan' et 'build' dans factory-state.js
+  phases: ['BREAK', 'MODEL', 'PLAN', 'BUILD', 'DEBRIEF']
 };
 
 /**
@@ -93,6 +112,7 @@ function loadData() {
 
 /**
  * Extract used tools from events
+ * Handles both Unix and Windows path separators
  */
 function extractUsedTools(events) {
   const used = new Set();
@@ -100,8 +120,10 @@ function extractUsedTools(events) {
   for (const event of events) {
     // Tool invocations
     if (event.type === 'tool_invocation' && event.data.command) {
+      // Normalize path separators for cross-platform matching
+      const normalizedCmd = event.data.command.replace(/\\/g, '/');
       // Extract tool name from commands like "node tools/gate-check.js"
-      const match = event.data.command.match(/node\s+tools\/([^\s]+)/);
+      const match = normalizedCmd.match(/node\s+tools\/([^\s]+)/);
       if (match) {
         used.add(match[1]);
       }
@@ -109,7 +131,9 @@ function extractUsedTools(events) {
 
     // File reads/writes that reference tools
     if (event.type === 'file_written' && event.data.filePath) {
-      const toolMatch = event.data.filePath.match(/tools\/([^\/]+\.js)/);
+      // Normalize path separators
+      const normalizedPath = event.data.filePath.replace(/\\/g, '/');
+      const toolMatch = normalizedPath.match(/tools\/([^\/]+\.js)/);
       if (toolMatch) {
         used.add(toolMatch[1]);
       }

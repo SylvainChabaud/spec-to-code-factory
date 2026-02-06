@@ -38,6 +38,8 @@ Décomposer les specs en epics/US/tasks implémentables.
 1. ✓ Charger TOUTES les specs (`docs/specs/*`) et ADR (`docs/adr/*`)
 2. ✓ Identifier les dépendances entre fonctionnalités
 3. ✓ Utiliser les templates pour structurer les outputs :
+   - `templates/planning/epics-template.md` → `docs/planning/epics.md`
+   - `templates/planning/US-template.md` → `docs/planning/us/US-XXXX-*.md`
    - `templates/planning/task-template.md` → `docs/planning/tasks/TASK-XXXX-*.md`
    - `templates/planning/task-assembly-template.md` → `TASK-XXXX-app-assembly.md` (dernière task)
    - `templates/testing/plan.md` → `docs/testing/plan.md`

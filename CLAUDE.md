@@ -33,6 +33,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - **Tasks auto-suffisantes** : Chaque task est 100% indépendante (principe BMAD)
 
 ## Conventions de nommage
+- Epics : `EPIC-XXX` (dans `docs/planning/epics.md`)
 - User Stories : `US-XXXX-titre.md`
 - Tasks : `TASK-XXXX-titre.md`
 - ADR : `ADR-XXXX-titre.md`
@@ -188,16 +189,39 @@ node tools/export-release.js [--output <dir>] [--dry-run] [--validate]
 
 Les agents utilisent ces templates pour générer des documents conformes :
 
+### Phase BREAK (Analyst)
+| Template | Output |
+|----------|--------|
+| `templates/break/brief-template.md` | `docs/brief.md` |
+| `templates/break/scope-template.md` | `docs/scope.md` |
+| `templates/break/acceptance-template.md` | `docs/acceptance.md` |
+| `templates/break/questions-template.md` | `docs/factory/questions.md` |
+
+### Phase MODEL (PM, Architect, Rules-Memory)
 | Template | Agent | Output |
 |----------|-------|--------|
 | `templates/specs/system.md` | PM | `docs/specs/system.md` |
 | `templates/specs/domain.md` | PM | `docs/specs/domain.md` |
 | `templates/specs/api.md` | Architect | `docs/specs/api.md` |
 | `templates/adr/ADR-template.md` | Architect | `docs/adr/ADR-*.md` |
-| `templates/testing/plan.md` | Scrum Master | `docs/testing/plan.md` |
-| `templates/planning/task-template.md` | Scrum Master | `docs/planning/tasks/TASK-*.md` |
-| `templates/planning/task-assembly-template.md` | Scrum Master | `TASK-XXXX-app-assembly.md` |
 | `templates/rule.md` | Rules-Memory | `.claude/rules/*.md` |
+
+### Phase ACT-PLAN (Scrum Master)
+| Template | Output |
+|----------|--------|
+| `templates/planning/epics-template.md` | `docs/planning/epics.md` |
+| `templates/planning/US-template.md` | `docs/planning/us/US-*.md` |
+| `templates/planning/task-template.md` | `docs/planning/tasks/TASK-*.md` |
+| `templates/planning/task-assembly-template.md` | `docs/planning/tasks/TASK-*-app-assembly.md` |
+| `templates/testing/plan.md` | `docs/testing/plan.md` |
+
+### Phase DEBRIEF (QA)
+| Template | Output |
+|----------|--------|
+| `templates/qa/report-template.md` | `docs/qa/report.md` |
+| `templates/release/checklist-template.md` | `docs/release/checklist.md` |
+| `templates/release/CHANGELOG-template.md` | `CHANGELOG.md` |
+| `templates/release/README.template.md` | `release/README.md` |
 
 ## Règles par domaine
 - `.claude/rules/factory-invariants.md` : Invariants pipeline
