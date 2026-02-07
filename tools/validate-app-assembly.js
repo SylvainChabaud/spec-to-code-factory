@@ -15,9 +15,11 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
-// Configuration
+// Configuration - supports multiple App.tsx locations (standard and Clean Architecture)
 const CONFIG = {
-  appPath: 'src/App.tsx',
+  appPaths: ['src/App.tsx', 'src/ui/App.tsx'], // Check both locations
+  componentsDirs: ['src/components', 'src/ui/components'], // Check both locations
+  hooksDirs: ['src/hooks', 'src/ui/hooks'], // Check both locations
   componentsIndexPath: 'src/components/index.ts',
   hooksIndexPath: 'src/hooks/index.ts',
   typesIndexPath: 'src/types/index.ts',
@@ -25,6 +27,18 @@ const CONFIG = {
   minComponentCoverage: 0.5, // 50%
   minHookCoverage: 0.5 // 50%
 };
+
+/**
+ * Find the first existing file from a list of paths
+ */
+function findExistingPath(paths) {
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+  return null;
+}
 
 /**
  * Parse exports from an index.ts file
@@ -209,13 +223,15 @@ function validateAppAssembly() {
   const warnings = [];
   const info = [];
 
-  // 1. Check if App.tsx exists
-  if (!fs.existsSync(CONFIG.appPath)) {
-    console.log(`❌ ${CONFIG.appPath} not found`);
+  // 1. Check if App.tsx exists (check multiple locations)
+  const appPath = findExistingPath(CONFIG.appPaths);
+  if (!appPath) {
+    console.log(`❌ App.tsx not found in: ${CONFIG.appPaths.join(', ')}`);
     process.exit(1);
   }
 
-  const appContent = fs.readFileSync(CONFIG.appPath, 'utf-8');
+  info.push(`Found App.tsx at: ${appPath}`);
+  const appContent = fs.readFileSync(appPath, 'utf-8');
   const appLines = appContent.split('\n').length;
 
   info.push(`App.tsx has ${appLines} lines`);
@@ -227,10 +243,16 @@ function validateAppAssembly() {
     info.push(`✅ App.tsx size OK (${appLines} >= ${CONFIG.minAppLines} lines)`);
   }
 
-  // 3. Discover components
+  // 3. Discover components (check multiple locations)
   let components = parseExportsFrom(CONFIG.componentsIndexPath);
   if (components.length === 0) {
-    components = findComponentsInDir('src/components');
+    for (const dir of CONFIG.componentsDirs) {
+      const found = findComponentsInDir(dir);
+      if (found.length > 0) {
+        components = found;
+        break;
+      }
+    }
   }
 
   if (components.length === 0) {
@@ -262,10 +284,16 @@ function validateAppAssembly() {
     }
   }
 
-  // 4. Discover hooks
+  // 4. Discover hooks (check multiple locations)
   let hooks = parseExportsFrom(CONFIG.hooksIndexPath);
   if (hooks.length === 0) {
-    hooks = findHooksInDir('src/hooks');
+    for (const dir of CONFIG.hooksDirs) {
+      const found = findHooksInDir(dir);
+      if (found.length > 0) {
+        hooks = found;
+        break;
+      }
+    }
   }
 
   if (hooks.length === 0) {
@@ -288,13 +316,21 @@ function validateAppAssembly() {
     }
   }
 
-  // 5. Check TypeScript validity (optional - skip if tsc not available)
+  // 5. Check TypeScript validity (BLOCKING - forces agent to fix errors)
   try {
-    const tsResult = validateTypeScript(CONFIG.appPath);
+    const tsResult = validateTypeScript(appPath);
     if (!tsResult.success) {
-      errors.push('TypeScript compilation failed');
+      errors.push('TypeScript compilation failed - fix all type errors before continuing');
       if (tsResult.stderr) {
-        errors.push(`  ${tsResult.stderr.substring(0, 500)}`);
+        // Extract first 5 errors for clarity
+        const lines = tsResult.stderr.split('\n').filter(l => l.includes('error TS'));
+        const preview = lines.slice(0, 5).join('\n  ');
+        if (preview) {
+          errors.push(`  ${preview}`);
+        }
+        if (lines.length > 5) {
+          errors.push(`  ... and ${lines.length - 5} more errors`);
+        }
       }
     } else {
       info.push('✅ TypeScript compilation OK');

@@ -16,7 +16,7 @@
 
 ### Donnees personnelles (RGPD)
 - JAMAIS de vraies donnees personnelles dans le code ou tests
-- Emails fictifs: user@example.com, test@example.org
+- Emails fictifs: user@example.com, test@example.com
 - Noms fictifs: John Doe, Jane Smith
 - Anonymiser tous les logs (pas de PII)
 

@@ -16,26 +16,29 @@ const INSTRUMENTATION_FILE = 'docs/factory/instrumentation.json';
 /**
  * Known items in the factory pipeline
  * Used to calculate coverage percentages
+ *
+ * Note: Only includes tools that are EXPECTED in a normal pipeline run.
+ * Excluded:
+ * - factory-reset.js: Only used with /reset command
+ * - validate-commit-msg.js: Optional git hook
+ * - validate-file-scope.js: Called by hooks, not gates (tracked indirectly)
+ * - instrumentation/collector.js: The collector itself, always used
  */
 const KNOWN_ITEMS = {
-  // Factory tools (16 total)
+  // Factory tools expected in a normal pipeline run (12 total)
   tools: [
     'factory-state.js',
-    'factory-reset.js',
     'factory-log.js',
     'gate-check.js',
     'set-current-task.js',
     'validate-requirements.js',
-    'validate-file-scope.js',
     'validate-code-quality.js',
     'validate-structure.js',
     'validate-app-assembly.js',
     'scan-secrets.js',
     'validate-boundaries.js',
-    'validate-commit-msg.js',
     'verify-pipeline.js',
-    'export-release.js',
-    'instrumentation/collector.js'
+    'export-release.js'
   ],
 
   // Templates (18 total)
@@ -60,20 +63,19 @@ const KNOWN_ITEMS = {
     // Phase DEBRIEF (QA)
     'templates/qa/report-template.md',
     'templates/release/checklist-template.md',
-    'templates/release/CHANGELOG-template.md',
-    'templates/release/README.template.md'
+    'templates/release/CHANGELOG-template.md'
+    // Note: README.template.md is used by export-release.js (subprocess, not tracked by hooks)
   ],
 
-  // Skills (workflows)
+  // Skills expected in a normal /factory-run pipeline
+  // Excluded: factory-resume (only after interruption), gate-check (manual)
   skills: [
     'factory-intake',
     'factory-spec',
     'factory-plan',
     'factory-build',
     'factory-qa',
-    'factory-run',
-    'factory-resume',
-    'gate-check'
+    'factory-run'
   ],
 
   // Agent types
@@ -112,31 +114,51 @@ function loadData() {
 
 /**
  * Extract used tools from events
- * Handles both Unix and Windows path separators
+ * Infers tool usage from gate checks and phase events
+ * (Direct Bash tracking doesn't work because hooks don't capture command field)
  */
 function extractUsedTools(events) {
   const used = new Set();
 
   for (const event of events) {
-    // Tool invocations
-    if (event.type === 'tool_invocation' && event.data.command) {
-      // Normalize path separators for cross-platform matching
-      const normalizedCmd = event.data.command.replace(/\\/g, '/');
-      // Extract tool name from commands like "node tools/gate-check.js"
-      const match = normalizedCmd.match(/node\s+tools\/([^\s]+)/);
-      if (match) {
-        used.add(match[1]);
+    // Gate checks indicate which validation tools were called
+    if (event.type === 'gate_checked') {
+      used.add('gate-check.js');
+
+      // Gate 0: validate-requirements.js
+      if (event.data.gate === 0) {
+        used.add('validate-requirements.js');
+      }
+      // Gate 1: validate-structure.js
+      if (event.data.gate === 1) {
+        used.add('validate-structure.js');
+      }
+      // Gate 2: scan-secrets.js
+      if (event.data.gate === 2) {
+        used.add('scan-secrets.js');
+      }
+      // Gate 4: validate-code-quality.js, validate-app-assembly.js, validate-boundaries.js
+      if (event.data.gate === 4) {
+        used.add('validate-code-quality.js');
+        used.add('validate-app-assembly.js');
+        used.add('validate-boundaries.js');
+      }
+      // Gate 5: export-release.js, verify-pipeline.js
+      if (event.data.gate === 5) {
+        used.add('export-release.js');
+        used.add('verify-pipeline.js');
       }
     }
 
-    // File reads/writes that reference tools
-    if (event.type === 'file_written' && event.data.filePath) {
-      // Normalize path separators
-      const normalizedPath = event.data.filePath.replace(/\\/g, '/');
-      const toolMatch = normalizedPath.match(/tools\/([^\/]+\.js)/);
-      if (toolMatch) {
-        used.add(toolMatch[1]);
-      }
+    // Phase events indicate factory-state.js and factory-log.js usage
+    if (event.type === 'phase_started' || event.type === 'phase_completed') {
+      used.add('factory-state.js');
+      used.add('factory-log.js');
+    }
+
+    // Task events indicate set-current-task.js usage
+    if (event.type === 'task_completed') {
+      used.add('set-current-task.js');
     }
   }
 
@@ -145,25 +167,46 @@ function extractUsedTools(events) {
 
 /**
  * Extract used templates from events
+ * Detects templates from:
+ * - template_used events (direct tracking)
+ * - file_written events that match template output patterns
  */
 function extractUsedTemplates(events) {
   const used = new Set();
 
   for (const event of events) {
+    // Direct template_used events (from PreToolUse hook on Read)
+    if (event.type === 'template_used' && event.data.template) {
+      // Normalize and match against known templates
+      const normalizedPath = event.data.template.replace(/\\/g, '/');
+      for (const template of KNOWN_ITEMS.templates) {
+        if (normalizedPath.includes(template) || normalizedPath.endsWith(template.replace('templates/', ''))) {
+          used.add(template);
+        }
+      }
+    }
+
+    // Check file paths in any event
     if (event.data.filePath) {
-      // Check if a template was read
-      if (event.data.filePath.includes('templates/')) {
-        used.add(event.data.filePath);
+      const normalizedPath = event.data.filePath.replace(/\\/g, '/');
+
+      // Check if a template was directly accessed
+      if (normalizedPath.includes('templates/')) {
+        for (const template of KNOWN_ITEMS.templates) {
+          if (normalizedPath.includes(template)) {
+            used.add(template);
+          }
+        }
       }
 
-      // Check if output matches a template pattern
+      // Check if output matches a template pattern (inferring template usage)
       for (const template of KNOWN_ITEMS.templates) {
         const outputPattern = template
           .replace('templates/', 'docs/')
           .replace('-template', '')
           .replace(/\.md$/, '');
 
-        if (event.data.filePath.includes(outputPattern)) {
+        if (normalizedPath.includes(outputPattern)) {
           used.add(template);
         }
       }

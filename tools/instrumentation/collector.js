@@ -125,6 +125,24 @@ function recordFileWritten(filePath, tool, task = null) {
 }
 
 /**
+ * Record a template being used (Read tool on templates/ directory)
+ * @param {string} templatePath - Template file path
+ * @param {string} agent - Agent that read the template
+ */
+function recordTemplateUsed(templatePath, agent = null) {
+  // Normalize path for consistent matching
+  const normalizedPath = templatePath.replace(/\\/g, '/');
+  // Extract relative path from templates/
+  const match = normalizedPath.match(/templates\/(.+)/);
+  const relativePath = match ? `templates/${match[1]}` : templatePath;
+
+  return appendEvent('template_used', {
+    template: relativePath,
+    agent
+  });
+}
+
+/**
  * Record a gate check result
  * @param {number} gateNum - Gate number (1-5)
  * @param {string} status - PASS or FAIL
@@ -268,6 +286,17 @@ switch (command) {
     }
     break;
 
+  case 'template':
+    // node collector.js template '{"template":"templates/break/brief-template.md","agent":"analyst"}'
+    try {
+      const data = JSON.parse(arg1 || '{}');
+      recordTemplateUsed(data.template, data.agent);
+    } catch (e) {
+      console.error('Invalid JSON data');
+      process.exit(1);
+    }
+    break;
+
   case 'gate':
     // node collector.js gate '{"gate":1,"status":"PASS","errors":[]}'
     try {
@@ -358,6 +387,7 @@ switch (command) {
     console.log('Commands:');
     console.log('  tool <json>        Record tool invocation');
     console.log('  file <json>        Record file write');
+    console.log('  template <json>    Record template usage');
     console.log('  gate <json>        Record gate check');
     console.log('  skill <json>       Record skill invocation');
     console.log('  agent <json>       Record agent delegation');
@@ -380,6 +410,7 @@ export {
   appendEvent,
   recordToolInvocation,
   recordFileWritten,
+  recordTemplateUsed,
   recordGateCheck,
   recordSkillInvocation,
   recordAgentDelegation,

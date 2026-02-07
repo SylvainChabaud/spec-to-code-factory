@@ -45,6 +45,18 @@ if (isEnabled()) {
       stdio: 'ignore',
       timeout: 1000
     });
+
+    // Track template usage when Read tool accesses templates/ directory
+    if (input.tool_name === 'Read' && input.tool_input?.file_path) {
+      const filePath = input.tool_input.file_path.replace(/\\/g, '/');
+      if (filePath.includes('templates/')) {
+        const templateData = JSON.stringify({ template: filePath, agent: null });
+        execSync(`node tools/instrumentation/collector.js template "${templateData.replace(/"/g, '\\"')}"`, {
+          stdio: 'ignore',
+          timeout: 1000
+        });
+      }
+    }
   } catch (e) { /* silent fail */ }
 }
 

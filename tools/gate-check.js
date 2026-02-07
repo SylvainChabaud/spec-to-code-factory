@@ -102,7 +102,10 @@ function globFiles(pattern, sortNumerically = true) {
 
   // Determine base directory from pattern
   const patternParts = pattern.split(/[*?{[]/);
-  const baseDir = patternParts[0].replace(/[/\\]$/, '') || '.';
+  const rawBase = patternParts[0].replace(/[/\\]$/, '') || '.';
+  // Strip back to last directory separator to get actual directory
+  const lastSep = Math.max(rawBase.lastIndexOf('/'), rawBase.lastIndexOf('\\'));
+  const baseDir = lastSep > 0 ? rawBase.substring(0, lastSep) : rawBase;
 
   if (!fs.existsSync(baseDir)) return [];
 
