@@ -60,7 +60,11 @@ release/  ← Projet livrable (sans infrastructure factory)
 │   ├── qa/             # Rapports QA
 │   ├── release/        # Checklist release
 │   └── factory/        # Logs du pipeline
-├── src/                # Code source généré
+├── src/                # Code source généré (Clean Architecture supportée)
+│   ├── domain/         # Entités, Value Objects (si Clean Arch)
+│   ├── application/    # Use Cases, DTOs, Ports (si Clean Arch)
+│   ├── infrastructure/ # Repositories, Adaptateurs (si Clean Arch)
+│   └── ui/             # Composants React, Hooks (si Clean Arch)
 ├── tests/              # Tests générés
 ├── tools/              # Outils de validation
 ├── templates/
@@ -139,26 +143,38 @@ Dans `.claude/settings.json` :
 |------|-------------|
 | `tool_invocation` | Invocation d'un tool |
 | `file_written` | Fichier écrit |
+| `template_used` | Template lu (tracking automatique via hooks) |
 | `gate_checked` | Vérification gate (0-5) |
 | `skill_invoked` | Skill invoquée |
 | `agent_delegated` | Délégation agent |
 | `phase_started` | Début de phase |
 | `phase_completed` | Fin de phase |
+| `task_completed` | Tâche terminée |
 
 ### Commandes
 
 ```bash
-node tools/instrumentation/collector.js status   # État
-node tools/instrumentation/collector.js summary  # Résumé
-node tools/instrumentation/collector.js reset    # Réinitialiser
-node tools/instrumentation/coverage.js           # Couverture pipeline
-node tools/instrumentation/reporter.js           # Rapport markdown
+node tools/instrumentation/collector.js status    # État
+node tools/instrumentation/collector.js summary   # Résumé
+node tools/instrumentation/collector.js reset     # Réinitialiser
+node tools/instrumentation/collector.js template  # Enregistrer usage template
+node tools/instrumentation/coverage.js            # Couverture pipeline
+node tools/instrumentation/reporter.js            # Rapport markdown
 ```
 
 ### Output
 
 - `docs/factory/instrumentation.json` - Événements (append-only)
 - `docs/factory/coverage-report.md` - Rapport de couverture
+
+### Couverture pipeline réaliste
+
+Le calcul de couverture exclut les outils non attendus dans un run normal :
+- `factory-reset.js` : Uniquement avec `/reset`
+- `validate-commit-msg.js` : Hook git optionnel
+- `validate-file-scope.js` : Appelé par hooks (tracking indirect)
+
+Le tracking des templates est automatique via le hook `pretooluse-security.js` qui intercepte les lectures du dossier `templates/`.
 
 ## Memoire hierarchique Claude Code
 

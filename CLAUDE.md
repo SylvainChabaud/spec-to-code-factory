@@ -63,10 +63,24 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/validate-code-quality.js` : Validation code vs specs (mode STRICT)
 - `tools/validate-structure.js` : Validation structure projet (Gate 1)
 - `tools/scan-secrets.js` : Scan secrets et PII (Gate 2)
-- `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4)
+- `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4) - **supporte Clean Arch**
 - `tools/validate-boundaries.js` : Validation des règles d'import inter-couches (Gate 4)
 - `tools/export-release.js` : Export du projet livrable (Gate 5)
 - `tools/verify-pipeline.js` : Vérification post-pipeline complète (toutes phases)
+
+## Permissions simplifiées
+
+Les permissions dans `.claude/settings.json` ont été simplifiées pour réduire les prompts :
+
+```json
+"permissions": {
+  "allow": ["Read(*)", "Write(*)", "Edit(*)", "Glob(*)", "Grep(*)", "Bash(node tools/*)", ...],
+  "ask": ["Bash(git add:*)", "Bash(git commit:*)"],
+  "deny": ["Read(.env)", "Write(.env)", ...]
+}
+```
+
+Seuls les commits git demandent confirmation. Les opérations Read/Write/Edit sont autorisées par défaut.
 
 ## Hook Git optionnel
 
@@ -98,19 +112,22 @@ Le pipeline peut tracer tous les événements pour debugging ou audit.
 |------|-------------|--------|
 | `tool_invocation` | Invocation d'un tool | Hooks PreToolUse |
 | `file_written` | Fichier écrit | Hooks PostToolUse |
+| `template_used` | Template lu depuis templates/ | Hooks PreToolUse (Read) |
 | `gate_checked` | Vérification gate (0-5) | gate-check.js |
 | `skill_invoked` | Skill invoquée | Skills factory-* |
 | `agent_delegated` | Délégation agent | Skills factory-* |
 | `phase_started` | Début de phase | Skills factory-* |
 | `phase_completed` | Fin de phase | factory-log.js |
+| `task_completed` | Tâche implémentée | set-current-task.js |
 
 **Commandes** :
 ```bash
 node tools/instrumentation/collector.js status       # État
 node tools/instrumentation/collector.js summary      # Résumé
 node tools/instrumentation/collector.js reset        # Réinitialiser
-node tools/instrumentation/coverage.js              # Couverture pipeline
-node tools/instrumentation/reporter.js              # Rapport markdown
+node tools/instrumentation/collector.js template     # Enregistrer usage template
+node tools/instrumentation/coverage.js               # Couverture pipeline
+node tools/instrumentation/reporter.js               # Rapport markdown
 ```
 
 **Output** :
@@ -128,9 +145,14 @@ Le pipeline inclut une validation stricte du code généré contre les specs :
 | Critère | Seuil | Bloquant |
 |---------|-------|----------|
 | Couverture de tests | ≥ 80% | Oui |
-| Types TypeScript | Strict | Oui |
+| Types TypeScript | Strict (erreurs bloquantes) | Oui |
 | Conformité API specs | 100% | Oui |
 | Conformité Domain specs | 100% | Oui |
+| App assembly (composants/hooks) | ≥ 50% | Oui |
+| Boundaries architecturales | 0 violation | Oui |
+
+**Support Clean Architecture** : App.tsx recherché dans `src/App.tsx` OU `src/ui/App.tsx`.
+Components et hooks dans `src/components/` ou `src/ui/components/`.
 
 Usage : `node tools/validate-code-quality.js --gate4`
 
