@@ -53,7 +53,20 @@ Transformer un requirements.md brut en brief/scope/acceptance exploitables.
 2. Identifier les manques, ambiguïtés, zones floues
 3. Classer les problèmes : 🔴 bloquant / 🟡 optionnel
 
-### Étape 2 - Questions à l'utilisateur (CRITIQUE)
+### Étape 2 - Detection automatique (NOUVEAU)
+
+Verifier ces elements et poser des questions si manquants :
+
+| Element | Section | Condition de detection | Question a poser |
+|---------|---------|------------------------|------------------|
+| **CSS** | §11 | Section vide (pas de contenu hors commentaires HTML) | "Quelle approche CSS souhaitez-vous ? (Tailwind recommande)" |
+| **Qualite** | §12 | Section vide (pas de contenu hors commentaires HTML) | "Voulez-vous preciser des contraintes qualite ? (tests, magic numbers, DRY)" |
+
+Si non repondu → Hypothese par defaut :
+- CSS : Tailwind CSS (best practice 2025-2026)
+- Qualite : TypeScript strict + tests unitaires
+
+### Étape 3 - Questions à l'utilisateur (CRITIQUE)
 1. Préparer MAX 10 questions **priorisées**
 2. **Poser les questions via `AskUserQuestion` tool** :
    - Poser les questions bloquantes en premier
@@ -62,7 +75,7 @@ Transformer un requirements.md brut en brief/scope/acceptance exploitables.
 3. **Logger les Q/R** dans `docs/factory/questions.md`
 4. Informer l'utilisateur que les réponses sont stockées dans ce fichier
 
-### Étape 3 - Génération des documents
+### Étape 4 - Génération des documents
 1. **Lire les templates** depuis `templates/break/`
 2. Intégrer les réponses dans brief.md (basé sur `brief-template.md`)
 3. Pour les questions non répondues → **Hypothèse EXPLICITE** dans brief.md#hypotheses

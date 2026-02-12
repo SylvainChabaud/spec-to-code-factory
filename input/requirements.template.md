@@ -21,7 +21,7 @@
 <!-- Types de données, sensibilité, volumes -->
 
 ## 7. Contraintes non-fonctionnelles
-<!-- Sécurité, RGPD, performance, budget, délais -->
+<!-- sécurité, RGPD, performance, accessibilité (WCAG), budget, délais -->
 
 ## 8. Hors-scope explicite
 <!-- Ce qui n'est PAS inclus -->
@@ -33,7 +33,7 @@
 <!-- APIs, services tiers (si applicable) -->
 
 ## 11. Stack / Préférences techniques (optionnel)
-<!-- Langages, frameworks souhaités -->
+<!-- Langages, frameworks, CSS (Tailwind, CSS Modules), i18n (react-i18next), Linter (ESLint, Biome) -->
 
 ## 12. Qualité attendue
-<!-- Tests, lint, typecheck, doc -->
+<!-- Tests (couverture >= 80%), TypeScript strict, zero magic number, pas de duplication (DRY) -->

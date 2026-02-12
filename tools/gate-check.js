@@ -65,7 +65,8 @@ const GATES = {
     testsPass: true, // Vérifie que les tests passent
     codeQuality: true, // Vérifie conformité code/specs (mode STRICT)
     appAssembly: true, // Vérifie que App.tsx assemble les composants
-    boundaryCheck: true // Vérifie les règles d'import inter-couches
+    boundaryCheck: true, // Vérifie les règles d'import inter-couches
+    magicNumbersCheck: true // Vérifie absence de magic numbers
   },
   5: {
     name: 'QA → Release',
@@ -412,6 +413,50 @@ function runAppAssemblyValidation() {
 }
 
 /**
+ * Run magic numbers validation (Gate 4)
+ * Validates that no magic numbers are present in code
+ */
+function runMagicNumbersValidation() {
+  const validatorPath = 'tools/validate-magic-numbers.js';
+
+  if (!fs.existsSync(validatorPath)) {
+    return { success: true, skipped: true, reason: 'validate-magic-numbers.js not found' };
+  }
+
+  // Check if src/ exists
+  if (!fs.existsSync('src')) {
+    return { success: true, skipped: true, reason: 'No src/ directory found' };
+  }
+
+  console.log('  Validating magic numbers...');
+
+  try {
+    const output = execSync('node tools/validate-magic-numbers.js', {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+      timeout: 60000
+    });
+    return { success: true, output };
+  } catch (error) {
+    // Exit code 2 = magic numbers found
+    if (error.status === 2) {
+      return {
+        success: false,
+        error: 'Magic numbers detected in code',
+        stdout: error.stdout,
+        stderr: error.stderr
+      };
+    }
+    return {
+      success: false,
+      error: `Magic numbers validation error: ${error.message}`,
+      stdout: error.stdout,
+      stderr: error.stderr
+    };
+  }
+}
+
+/**
  * Run boundary validation (Gate 4)
  * Validates architectural layer import rules
  */
@@ -654,6 +699,24 @@ async function checkGate(gateNum) {
       console.log(`  ⚠️  Boundary validation skipped (${reason})\n`);
     } else {
       console.log('  ✅ Boundary validation PASS\n');
+    }
+  }
+
+  // Magic numbers validation (Gate 4)
+  if (gate.magicNumbersCheck) {
+    const magicResult = runMagicNumbersValidation();
+    if (!magicResult.success && !magicResult.skipped) {
+      errors.push(`Magic numbers validation échouée: ${magicResult.error}`);
+      if (magicResult.stdout) {
+        console.log('\n--- Magic Numbers Output ---');
+        console.log(magicResult.stdout.substring(0, 2000));
+        console.log('----------------------------\n');
+      }
+    } else if (magicResult.skipped) {
+      const reason = magicResult.reason || 'validateur non trouvé';
+      console.log(`  ⚠️  Magic numbers validation skipped (${reason})\n`);
+    } else {
+      console.log('  ✅ Magic numbers validation PASS\n');
     }
   }
 
