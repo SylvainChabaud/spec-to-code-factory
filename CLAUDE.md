@@ -17,7 +17,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 | 1 | BREAK→MODEL | Fichiers brief/scope/acceptance + **structure projet** |
 | 2 | MODEL→ACT | Specs + ADR + **scan secrets/PII** |
 | 3 | PLAN→BUILD | Epics + US + Tasks avec DoD |
-| 4 | BUILD→QA | Tests passants + **code quality strict** + **app assembly** + **boundary check** + **magic numbers** |
+| 4 | BUILD→QA | Tests passants + **code quality strict** + **app assembly** + **boundary check** |
 | 5 | QA→RELEASE | QA report + checklist + CHANGELOG + **export release** |
 
 ## Phases
@@ -65,7 +65,6 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/scan-secrets.js` : Scan secrets et PII (Gate 2)
 - `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4) - **supporte Clean Arch**
 - `tools/validate-boundaries.js` : Validation des règles d'import inter-couches (Gate 4)
-- `tools/validate-magic-numbers.js` : Detection des nombres magiques dans le code (Gate 4)
 - `tools/export-release.js` : Export du projet livrable (Gate 5)
 - `tools/verify-pipeline.js` : Vérification post-pipeline complète (toutes phases)
 
@@ -151,7 +150,6 @@ Le pipeline inclut une validation stricte du code généré contre les specs :
 | Conformité Domain specs | 100% | Oui |
 | App assembly (composants/hooks) | ≥ 50% | Oui |
 | Boundaries architecturales | 0 violation | Oui |
-| Magic numbers | 0 nombre magique | Oui |
 
 **Support Clean Architecture** : App.tsx recherché dans `src/App.tsx` OU `src/ui/App.tsx`.
 Components et hooks dans `src/components/` ou `src/ui/components/`.
@@ -250,13 +248,4 @@ Les agents utilisent ces templates pour générer des documents conformes :
 ## Règles par domaine
 - `.claude/rules/factory-invariants.md` : Invariants pipeline
 - `.claude/rules/security-baseline.md` : Sécurité baseline
-- `.claude/rules/quality-magic-numbers.md` : Anti magic numbers (qualité code)
-- `.claude/rules/*.md` : Règles générées selon projet
-
-## Magic Numbers
-
-Nombres en dur **INTERDITS**. Utiliser `src/domain/constants.ts` avec noms en `SCREAMING_SNAKE_CASE`.
-
-Exceptions : `0`, `1`, `-1`, `2`, `100`.
-
-Template : `templates/domain/constants-template.ts`
+- `.claude/rules/*.md` : Règles générées selon projet (basées sur requirements.md)
