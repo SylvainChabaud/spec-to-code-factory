@@ -36,7 +36,9 @@ release/  ← Projet livrable (sans infrastructure factory)
 
 | Command | Description |
 |---------|-------------|
-| `/factory-run` | Pipeline complet |
+| `/factory-run` | Pipeline complet (greenfield V1) |
+| `/factory-evolve` | Evolution incrementale (brownfield V2+) |
+| `/factory-quick` | Quick fix/tweak mineur (BMAD Quick Flow) |
 | `/factory-intake` | Phase BREAK |
 | `/factory-spec` | Phase MODEL |
 | `/factory-plan` | Phase ACT (planning) |
@@ -44,22 +46,39 @@ release/  ← Projet livrable (sans infrastructure factory)
 | `/factory-qa` | Phase DEBRIEF |
 | `/factory-resume` | Reprend après interruption |
 | `/gate-check [0-5]` | Vérifie un gate |
+| `/clean` | Remet le projet en état "starter" |
 | `/status` | État du pipeline |
 | `/reset [phase]` | Réinitialise une phase |
 | `/help` | Aide complète |
 
+### Quel workflow utiliser ?
+
+| Situation | Commande | Description |
+|-----------|----------|-------------|
+| Nouveau projet | `/factory-run` | Pipeline complet greenfield |
+| Feature majeure (V2+) | `/factory-evolve` | Pipeline incremental brownfield |
+| Bug fix / tweak mineur | `/factory-quick` | Quick Flow avec detection conformite |
+
+**Quick Flow** : Pour les modifications mineures qui ne changent pas le modele metier.
+Si `/factory-quick` detecte que la modification impacte les specs, il propose automatiquement de generer un `requirements-N.md` et basculer vers `/factory-evolve`.
+
 ## Structure
 
 ```
-├── input/              # Requirements + ressources
+├── input/              # Requirements (requirements.md, requirements-2.md...)
 ├── docs/               # Documentation générée
-│   ├── specs/          # Spécifications
+│   ├── specs/          # Spécifications (system, domain, api)
 │   ├── adr/            # Architecture Decision Records
-│   ├── planning/       # Epics, US, Tasks
+│   ├── planning/       # Structure versionnee
+│   │   ├── v1/         # Version 1 (greenfield)
+│   │   │   ├── epics.md
+│   │   │   ├── us/     # User Stories
+│   │   │   └── tasks/  # Tasks
+│   │   └── v2/         # Version 2+ (brownfield)
 │   ├── testing/        # Plan de tests
-│   ├── qa/             # Rapports QA
+│   ├── qa/             # Rapports QA (report.md, report-v2.md...)
 │   ├── release/        # Checklist release
-│   └── factory/        # Logs du pipeline
+│   └── factory/        # Logs du pipeline (state.json, log.md)
 ├── src/                # Code source généré (Clean Architecture supportée)
 │   ├── domain/         # Entités, Value Objects (si Clean Arch)
 │   ├── application/    # Use Cases, DTOs, Ports (si Clean Arch)
@@ -76,6 +95,54 @@ release/  ← Projet livrable (sans infrastructure factory)
     ├── commands/       # Commands disponibles
     ├── rules/          # Règles de gouvernance
     └── hooks/          # Hooks de validation
+```
+
+## Evolution de projet (V2+)
+
+Le pipeline supporte l'evolution incrementale via `/factory-evolve`.
+
+### Requirements multiples
+
+```
+input/
+  requirements.md      # V1 (initial)
+  requirements-2.md    # V2 (evolution)
+  requirements-3.md    # V3 (evolution)
+```
+
+### Structure versionnee
+
+```
+docs/planning/
+  v1/           # Cree par /factory-run
+    epics.md
+    us/
+    tasks/
+  v2/           # Cree par /factory-evolve
+    epics.md
+    us/
+    tasks/
+```
+
+### Strategie par type de document
+
+| Document | V1 | V2+ |
+|----------|----|----|
+| brief, scope, acceptance | CREATE | EDIT (enrichir) |
+| specs (system, domain, api) | CREATE | EDIT (mettre a jour) |
+| planning | CREATE v1/ | CREATE v2/ |
+| ADR | CREATE | CREATE (nouveau) + EDIT status ancien |
+| QA reports | CREATE | CREATE (report-vN.md) |
+| CHANGELOG | CREATE | EDIT (prepend) |
+
+### Detection automatique
+
+```bash
+node tools/detect-requirements.js
+# { "file": "input/requirements-2.md", "version": 2, "isEvolution": true }
+
+node tools/get-planning-version.js
+# { "dir": "docs/planning/v2", "version": 2, ... }
 ```
 
 ## Invariants

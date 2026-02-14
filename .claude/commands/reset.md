@@ -42,10 +42,12 @@ Réinitialise une phase du pipeline.
 |-------|-------------------|
 | `intake` | docs/brief.md, docs/scope.md, docs/acceptance.md, docs/factory/questions.md |
 | `spec` | docs/specs/*.md, docs/adr/*.md (sauf template), .claude/rules/*.md (sauf baseline) |
-| `plan` | docs/planning/epics.md, docs/planning/us/*.md, docs/planning/tasks/*.md |
+| `plan` | docs/planning/vN/epics.md, docs/planning/vN/us/*.md, docs/planning/vN/tasks/*.md (toutes versions) |
 | `build` | src/*, tests/*, docs/factory/current-task.txt |
 | `qa` | docs/qa/report.md, docs/release/checklist.md, CHANGELOG.md |
 | `all` | Tous les fichiers ci-dessus |
+
+> **Note** : La phase `plan` supprime tous les dossiers versionnés (v1, v2, etc.).
 
 ## Protection
 

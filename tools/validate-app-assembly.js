@@ -14,30 +14,28 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { loadProjectConfig, findAppPath, findComponentPaths, findHookPaths } from './lib/project-config.js';
 
-// Configuration - supports multiple App.tsx locations (standard and Clean Architecture)
-const CONFIG = {
-  appPaths: ['src/App.tsx', 'src/ui/App.tsx'], // Check both locations
-  componentsDirs: ['src/components', 'src/ui/components'], // Check both locations
-  hooksDirs: ['src/hooks', 'src/ui/hooks'], // Check both locations
-  componentsIndexPath: 'src/components/index.ts',
-  hooksIndexPath: 'src/hooks/index.ts',
-  typesIndexPath: 'src/types/index.ts',
-  minAppLines: 50,
-  minComponentCoverage: 0.5, // 50%
-  minHookCoverage: 0.5 // 50%
-};
+// Configuration - loaded once from project-config.json with fallbacks
+let _cachedConfig = null;
+function getConfig() {
+  if (_cachedConfig) return _cachedConfig;
 
-/**
- * Find the first existing file from a list of paths
- */
-function findExistingPath(paths) {
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      return p;
-    }
-  }
-  return null;
+  const projectConfig = loadProjectConfig();
+  const thresholds = projectConfig.validation?.appAssembly || {};
+
+  _cachedConfig = {
+    appPath: findAppPath(),
+    componentsDirs: findComponentPaths(),
+    hooksDirs: findHookPaths(),
+    componentsIndexPath: 'src/components/index.ts',
+    hooksIndexPath: 'src/hooks/index.ts',
+    typesIndexPath: 'src/types/index.ts',
+    minAppLines: thresholds.minLines || 10,
+    minComponentCoverage: thresholds.minComponentCoverage || 0.5,
+    minHookCoverage: thresholds.minHookCoverage || 0.5
+  };
+  return _cachedConfig;
 }
 
 /**
@@ -219,14 +217,17 @@ function validateTypeScript(filePath) {
 function validateAppAssembly() {
   console.log('\n🔍 Validating App Assembly...\n');
 
+  // Load config from project-config.json (or defaults)
+  const CONFIG = getConfig();
+
   const errors = [];
   const warnings = [];
   const info = [];
 
-  // 1. Check if App.tsx exists (check multiple locations)
-  const appPath = findExistingPath(CONFIG.appPaths);
+  // 1. Check if App.tsx exists (from project-config.json)
+  const appPath = CONFIG.appPath;
   if (!appPath) {
-    console.log(`❌ App.tsx not found in: ${CONFIG.appPaths.join(', ')}`);
+    console.log(`❌ App.tsx not found (check docs/factory/project-config.json)`);
     process.exit(1);
   }
 

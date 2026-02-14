@@ -18,14 +18,23 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { getTasksDir } from './lib/factory-state.js';
+import { getValidationThresholds } from './lib/project-config.js';
 
-// Configuration STRICT
-const CONFIG = {
-  coverageThreshold: 80,           // Minimum 80% coverage
-  strictTypes: true,               // TypeScript strict mode
-  specComplianceRequired: true,    // Code doit matcher les specs
-  blockOnCritical: true            // Bloque si erreur critique
-};
+// Configuration STRICT - loaded from project-config.json
+let _cachedConfig = null;
+function getConfig() {
+  if (_cachedConfig) return _cachedConfig;
+
+  const thresholds = getValidationThresholds();
+  _cachedConfig = {
+    coverageThreshold: thresholds.codeQuality?.testCoverage || 80,
+    strictTypes: thresholds.codeQuality?.typescriptStrict !== false,
+    specComplianceRequired: true,
+    blockOnCritical: true
+  };
+  return _cachedConfig;
+}
 
 /**
  * Charge et parse un fichier markdown
@@ -314,8 +323,9 @@ function validateCoverageThreshold() {
     return { errors, warnings, passed: true, skipped: true };
   }
 
-  if (coveragePercent !== null && coveragePercent < CONFIG.coverageThreshold) {
-    errors.push(`Couverture insuffisante: ${coveragePercent.toFixed(1)}% (minimum: ${CONFIG.coverageThreshold}%)`);
+  const config = getConfig();
+  if (coveragePercent !== null && coveragePercent < config.coverageThreshold) {
+    errors.push(`Couverture insuffisante: ${coveragePercent.toFixed(1)}% (minimum: ${config.coverageThreshold}%)`);
   }
 
   return {
@@ -427,10 +437,10 @@ async function validateGate4() {
   console.log('\n🔍 Gate 4 - Validation Code Quality (Mode STRICT)\n');
   console.log('═'.repeat(50));
 
-  // Trouver toutes les tasks
-  const tasksDir = 'docs/planning/tasks';
+  // Trouver toutes les tasks (versionné)
+  const tasksDir = getTasksDir();
   if (!fs.existsSync(tasksDir)) {
-    console.error('❌ Dossier tasks non trouvé');
+    console.error(`❌ Dossier tasks non trouvé: ${tasksDir}`);
     process.exit(1);
   }
 
@@ -483,9 +493,10 @@ if (!arg) {
   console.log('  node tools/validate-code-quality.js --gate4      # Mode Gate 4');
   console.log('');
   console.log('Mode: STRICT (bloque si non-conformité critique)');
-  console.log(`  - Couverture minimum: ${CONFIG.coverageThreshold}%`);
-  console.log(`  - Types TypeScript: ${CONFIG.strictTypes ? 'requis' : 'optionnel'}`);
-  console.log(`  - Conformité specs: ${CONFIG.specComplianceRequired ? 'requis' : 'optionnel'}`);
+  const config = getConfig();
+  console.log(`  - Couverture minimum: ${config.coverageThreshold}%`);
+  console.log(`  - Types TypeScript: ${config.strictTypes ? 'requis' : 'optionnel'}`);
+  console.log(`  - Conformité specs: ${config.specComplianceRequired ? 'requis' : 'optionnel'}`);
   process.exit(0);
 }
 

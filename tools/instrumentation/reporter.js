@@ -141,14 +141,35 @@ function generateEventSequence(data) {
 
 /**
  * Generate tools usage section
+ * Shows both CC tool invocations and inferred factory tools from coverage
  */
 function generateToolsUsage(data, coverage) {
   const lines = [
     '## Tools Usage',
-    '',
-    '### Used Tools',
     ''
   ];
+
+  // Section 1: Inferred factory tools (from coverage analysis)
+  const coverageTools = coverage.categories.Tools;
+  lines.push('### Factory Tools (inferred from gates/phases)');
+  lines.push('');
+
+  if (coverageTools.items.used.length > 0) {
+    lines.push('| Factory Tool | Status |');
+    lines.push('|--------------|--------|');
+    for (const tool of KNOWN_ITEMS.tools) {
+      const status = coverageTools.items.used.includes(tool) ? 'Used' : 'Not used';
+      lines.push(`| ${tool} | ${status} |`);
+    }
+  } else {
+    lines.push('No factory tools inferred from events.');
+  }
+
+  lines.push('');
+
+  // Section 2: CC tool invocations (direct hook tracking)
+  lines.push('### Claude Code Tools (direct tracking)');
+  lines.push('');
 
   const toolCounts = {};
   for (const event of data.events) {
@@ -164,22 +185,7 @@ function generateToolsUsage(data, coverage) {
       lines.push(`| ${tool} | ${count} |`);
     }
   } else {
-    lines.push('No tool invocations recorded.');
-  }
-
-  lines.push('');
-  lines.push('### Unused Factory Tools');
-  lines.push('');
-
-  const usedTools = new Set(Object.keys(toolCounts));
-  const unusedTools = KNOWN_ITEMS.tools.filter(t => !usedTools.has(t));
-
-  if (unusedTools.length > 0) {
-    for (const tool of unusedTools) {
-      lines.push(`- ${tool}`);
-    }
-  } else {
-    lines.push('All factory tools were used.');
+    lines.push('No CC tool invocations recorded.');
   }
 
   lines.push('');
@@ -187,7 +193,7 @@ function generateToolsUsage(data, coverage) {
 }
 
 /**
- * Generate files written section
+ * Generate files written section (deduplicated with edit counts)
  */
 function generateFilesWritten(data) {
   const lines = [
@@ -200,20 +206,31 @@ function generateFilesWritten(data) {
     .map(e => e.data.filePath);
 
   if (filesWritten.length > 0) {
-    const byDir = {};
+    // Count writes per file for deduplication
+    const fileCounts = {};
     for (const file of filesWritten) {
+      fileCounts[file] = (fileCounts[file] || 0) + 1;
+    }
+
+    // Group by directory (unique files only)
+    const byDir = {};
+    for (const [file, count] of Object.entries(fileCounts)) {
       const dir = path.dirname(file);
       if (!byDir[dir]) byDir[dir] = [];
-      byDir[dir].push(path.basename(file));
+      byDir[dir].push({ name: path.basename(file), count });
     }
 
     for (const [dir, files] of Object.entries(byDir).sort()) {
       lines.push(`### ${dir}/`);
-      for (const file of files) {
-        lines.push(`- ${file}`);
+      for (const file of files.sort((a, b) => a.name.localeCompare(b.name))) {
+        const suffix = file.count > 1 ? ` (${file.count} edits)` : '';
+        lines.push(`- ${file.name}${suffix}`);
       }
       lines.push('');
     }
+
+    lines.push(`*${Object.keys(fileCounts).length} unique files, ${filesWritten.length} total writes*`);
+    lines.push('');
   } else {
     lines.push('No files written during this run.');
     lines.push('');
@@ -316,12 +333,16 @@ function generateAgentsSection(data) {
     ''
   ];
 
-  const agentEvents = data.events.filter(e => e.type === 'agent_delegated');
+  const validAgents = new Set(KNOWN_ITEMS.agents);
+  const agentEvents = data.events.filter(e =>
+    e.type === 'agent_delegated' && validAgents.has(e.data.agent?.toLowerCase())
+  );
 
   if (agentEvents.length > 0) {
     const agentCounts = {};
     for (const event of agentEvents) {
-      agentCounts[event.data.agent] = (agentCounts[event.data.agent] || 0) + 1;
+      const agent = event.data.agent.toLowerCase();
+      agentCounts[agent] = (agentCounts[agent] || 0) + 1;
     }
 
     lines.push('| Agent | Delegations |');

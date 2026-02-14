@@ -53,15 +53,20 @@ ${message ? `- **Message**: ${message}` : ''}
   // Also record to instrumentation (if enabled)
   if (isEnabled()) {
     try {
+      // Values that are lifecycle statuses, not real agent names
+      // Matches exact values AND patterns like "evolve-started", "run-completed"
       const NON_AGENT_VALUES = ['completed', 'started', 'task-done', 'phase-complete'];
+      const isLifecycleValue = (val) =>
+        NON_AGENT_VALUES.includes(val) ||
+        /^.+-(started|completed|failed|skipped)$/.test(val);
 
       if (agent === 'task-done') {
         // Emit task_completed (not agent_delegated)
-        const taskData = JSON.stringify({ task: message, status: 'completed' });
+        const taskData = JSON.stringify({ task: status, status: 'completed' });
         execSync(`node tools/instrumentation/collector.js task "${taskData.replace(/"/g, '\\"')}"`, {
           stdio: 'ignore', timeout: 1000
         });
-      } else if (agent && !NON_AGENT_VALUES.includes(agent)) {
+      } else if (agent && !isLifecycleValue(agent)) {
         // Real agent only
         const agentData = JSON.stringify({ agent: agent.toLowerCase(), source: `factory-${phase.toLowerCase()}` });
         execSync(`node tools/instrumentation/collector.js agent "${agentData.replace(/"/g, '\\"')}"`, {

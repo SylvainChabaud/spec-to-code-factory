@@ -10,6 +10,9 @@ Tu es l'orchestrateur master du pipeline complet requirements → release.
 
 ## Workflow
 
+> ⚠️ **SÉQUENTIEL OBLIGATOIRE** : Invoquer UNE SEULE skill/phase à la fois.
+> Attendre sa completion AVANT de passer à la suivante. JAMAIS en parallèle.
+
 Exécuter les 5 phases **séquentiellement** en invoquant chaque skill directement.
 Chaque skill a son propre `context: fork` et gère sa délégation d'agent.
 
@@ -18,11 +21,19 @@ Chaque skill a son propre `context: fork` et gère sa délégation d'agent.
 # Reset instrumentation pour un timeline propre
 node tools/instrumentation/collector.js reset
 
-# Instrumentation (si activée)
+# Initialiser state.json avec version 1 (greenfield)
+node tools/factory-state.js set evolutionVersion 1
+node tools/factory-state.js set evolutionMode greenfield
+
+# Creer la structure versionnee pour V1
+mkdir -p docs/planning/v1/us
+mkdir -p docs/planning/v1/tasks
+
+# Instrumentation (si activee)
 node tools/instrumentation/collector.js skill "{\"skill\":\"factory-run\"}"
 
-# Log démarrage
-node tools/factory-log.js "PIPELINE" "started" "Demarrage du pipeline"
+# Log demarrage
+node tools/factory-log.js "PIPELINE" "started" "Demarrage du pipeline V1 (greenfield)"
 ```
 
 ### Phase 1 - BREAK

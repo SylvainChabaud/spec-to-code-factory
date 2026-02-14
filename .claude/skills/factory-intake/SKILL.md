@@ -14,19 +14,23 @@ Tu es l'orchestrateur de la phase BREAK.
 
 ## Workflow
 
-0. **Instrumentation** (si activée) - Enregistrer le début de phase :
+0. **Detection et instrumentation** - Detecter le mode et enregistrer :
    ```bash
+   # Detecter le fichier requirements le plus recent
+   node tools/detect-requirements.js
+   # Retourne: { "file": "input/requirements-N.md", "version": N, "isEvolution": true/false }
+
    node tools/instrumentation/collector.js phase-start "{\"phase\":\"BREAK\",\"skill\":\"factory-intake\"}"
    node tools/instrumentation/collector.js skill "{\"skill\":\"factory-intake\"}"
    ```
 
-1. **Vérifier Gate 0** : Valider `input/requirements.md`
+1. **Verifier Gate 0** : Valider le fichier requirements detecte
    ```bash
    node tools/gate-check.js 0
    ```
    - Si exit code = 1 → Fichier manquant, STOP
    - Si exit code = 2 → Sections manquantes/vides, STOP avec rapport
-   - L'utilisateur DOIT compléter toutes les sections avant de continuer
+   - L'utilisateur DOIT completer toutes les sections avant de continuer
 
 2. **Informer l'utilisateur** :
    ```
@@ -40,17 +44,30 @@ Tu es l'orchestrateur de la phase BREAK.
    - Ou en éditant docs/factory/questions.md puis relancer /factory-intake"
    ```
 
-3. **Déléguer à l'agent `analyst`** via Task tool :
+3. **Deleguer a l'agent `analyst`** via Task tool :
    ```bash
-   # Instrumentation (si activée)
+   # Instrumentation (si activee)
    node tools/instrumentation/collector.js agent "{\"agent\":\"analyst\",\"source\":\"factory-intake\"}"
    ```
    ```
    Task(
      subagent_type: "analyst",
-     prompt: "Analyse input/requirements.md. Pose les questions de clarification à l'utilisateur via AskUserQuestion. Documente les Q/R dans docs/factory/questions.md. Produis docs/brief.md, docs/scope.md et docs/acceptance.md",
-     description: "Analyst - Phase BREAK (avec Q/R)"
+     prompt: "Execute detect-requirements.js pour trouver le fichier requirements.
+     Si isEvolution=false (V1): CREATE docs/brief.md, scope.md, acceptance.md
+     Si isEvolution=true (V2+): EDIT les docs existants pour les enrichir.
+     Pose les questions via AskUserQuestion.
+     Documente les Q/R dans docs/factory/questions.md (V1) ou questions-vN.md (V2+).",
+     description: "Analyst - Phase BREAK (auto-detect mode)"
    )
+   ```
+
+3b. **Fallback questions-vN.md** (si le fichier n'existe pas apres retour de l'analyst) :
+   Verifier si `docs/factory/questions-vN.md` existe (ou `docs/factory/questions.md` en V1).
+   Si absent, creer un fichier minimal :
+   ```markdown
+   # Questions V<N>
+   > Fichier auto-genere — l'agent analyst n'a pas eu le temps de documenter les Q/R.
+   > Les reponses ont ete integrees directement dans brief.md et scope.md.
    ```
 
 4. **Vérifier les outputs** :

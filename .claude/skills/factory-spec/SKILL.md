@@ -11,11 +11,19 @@ Tu es l'orchestrateur de la phase MODEL.
 
 ## Workflow
 
-> ⚠️ **SYNCHRONISATION OBLIGATOIRE** : Chaque étape DOIT être terminée avant de passer à la suivante.
-> Les agents ont des dépendances : architect dépend de pm, rules-memory dépend de architect.
+> ⚠️ **SYNCHRONISATION OBLIGATOIRE** : Exécuter les agents UN PAR UN, JAMAIS en parallèle.
+> Les agents ont des dépendances strictes :
+> - `architect` DÉPEND de `pm` (lit system.md et domain.md)
+> - `rules-memory` DÉPEND de `architect` (lit api.md et ADR)
+>
+> **IMPORTANT** : N'envoyer qu'UN SEUL appel Task à la fois. Attendre son résultat avant le suivant.
 
-0. **Instrumentation** (si activée) - Enregistrer le début de phase :
+0. **Detection et instrumentation** - Detecter le mode et enregistrer :
    ```bash
+   # Detecter le mode (greenfield ou brownfield)
+   node tools/detect-requirements.js
+   # Retourne: { "version": N, "isEvolution": true/false }
+
    node tools/instrumentation/collector.js phase-start "{\"phase\":\"MODEL\",\"skill\":\"factory-spec\"}"
    node tools/instrumentation/collector.js skill "{\"skill\":\"factory-spec\"}"
    ```
@@ -31,8 +39,11 @@ Tu es l'orchestrateur de la phase MODEL.
    ```
    Task(
      subagent_type: "pm",
-     prompt: "Produis docs/specs/system.md et docs/specs/domain.md depuis docs/brief.md et docs/scope.md",
-     description: "PM - Specs fonctionnelles"
+     prompt: "Execute detect-requirements.js pour determiner le mode.
+     Si isEvolution=false (V1): CREATE docs/specs/system.md et domain.md
+     Si isEvolution=true (V2+): EDIT les specs existantes pour les mettre a jour.
+     Source: docs/brief.md et docs/scope.md",
+     description: "PM - Specs fonctionnelles (auto-detect mode)"
    )
    ```
    **⏳ ATTENDRE que le Task soit terminé avant de continuer.**
@@ -46,8 +57,11 @@ Tu es l'orchestrateur de la phase MODEL.
    ```
    Task(
      subagent_type: "architect",
-     prompt: "Produis docs/specs/api.md et docs/adr/ADR-0001-stack.md depuis docs/specs/system.md et docs/specs/domain.md",
-     description: "Architect - Specs techniques"
+     prompt: "Execute detect-requirements.js pour determiner le mode.
+     Si isEvolution=false (V1): CREATE docs/specs/api.md et ADR-0001-stack.md
+     Si isEvolution=true (V2+): EDIT api.md + CREATE nouveaux ADR + marquer anciens SUPERSEDED.
+     Source: docs/specs/system.md et docs/specs/domain.md",
+     description: "Architect - Specs techniques (auto-detect mode)"
    )
    ```
    **⏳ ATTENDRE que le Task soit terminé avant de continuer.**

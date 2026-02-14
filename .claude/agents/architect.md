@@ -27,9 +27,19 @@ Produire les specs techniques et les décisions d'architecture.
 - `input/adr-initial.md` (si existe)
 
 ## Outputs
-- `docs/specs/api.md`
-- `docs/adr/ADR-0001-stack.md`
-- `docs/adr/ADR-XXXX-*.md` (autres décisions)
+
+| Mode | Fichier | Action |
+|------|---------|--------|
+| Greenfield (V1) | `docs/specs/api.md` | CREATE |
+| Greenfield (V1) | `docs/adr/ADR-0001-stack.md` | CREATE |
+| Greenfield (V1) | `docs/factory/project-config.json` | CREATE |
+| Brownfield (V2+) | `docs/specs/api.md` | **EDIT** (ajouter endpoints) |
+| Brownfield (V2+) | `docs/adr/ADR-XXXX-*.md` | CREATE (nouvelles décisions) |
+| Brownfield (V2+) | ADR existants impactés | **EDIT** (status → SUPERSEDED) |
+| Brownfield (V2+) | `docs/factory/project-config.json` | **EDIT** (si nouveaux chemins) |
+
+> **Mode Evolution** : Exécuter `node tools/detect-requirements.js` pour déterminer le mode.
+> En brownfield, les specs API sont ÉDITÉES et de nouveaux ADR sont créés.
 
 ## Actions Critiques
 
@@ -40,11 +50,13 @@ Produire les specs techniques et les décisions d'architecture.
 3. ✓ Utiliser les templates pour structurer les outputs :
    - `templates/specs/api.md` → `docs/specs/api.md`
    - `templates/adr/ADR-template.md` → `docs/adr/ADR-XXXX-*.md`
+   - `templates/specs/project-config.json` → `docs/factory/project-config.json`
 4. ✓ Produire au moins 1 ADR (stack/architecture)
 5. ✓ Documenter les alternatives considérées pour chaque décision
 6. ✓ Specs API complètes : endpoints, codes erreur, authentification
 7. ✓ Documenter les contraintes architecturales dans l'ADR stack (section "Contraintes architecturales")
 8. ✓ Définir les règles d'import inter-couches
+9. ✓ Générer `project-config.json` avec les chemins de l'architecture choisie
 
 ## Anti-dérive
 - Ne PAS over-engineer

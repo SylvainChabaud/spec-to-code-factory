@@ -22,9 +22,11 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 Implémenter UNE task à la fois, strictement.
 
 ## Inputs
-- `docs/planning/tasks/TASK-XXXX.md` (task en cours)
+- Task en cours (chemin fourni par le skill appelant)
 - Fichiers référencés dans la task
 - `.claude/rules/*` applicables
+
+> Note: Le chemin de la task est dynamique selon la version du planning (`docs/planning/vN/tasks/TASK-XXXX.md`).
 
 ## Outputs
 - `src/*` (code)

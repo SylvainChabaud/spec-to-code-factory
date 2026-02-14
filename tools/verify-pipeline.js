@@ -19,9 +19,15 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { getPlanningDir, getTasksDir, getUSDir } from './lib/factory-state.js';
 
 const VERBOSE = process.argv.includes('--verbose');
 const JSON_OUTPUT = process.argv.includes('--json');
+
+// Chemins dynamiques versionnés
+const PLANNING_DIR = getPlanningDir();
+const TASKS_DIR = getTasksDir();
+const US_DIR = getUSDir();
 
 // Resultats
 const results = {
@@ -176,30 +182,31 @@ check('Phase MODEL', 'ADR-0001 contient contraintes architecturales', () => {
 // ============================================================
 
 check('Phase ACT (Planning)', 'epics.md existe', () => {
-  return fileExists('docs/planning/epics.md')
+  const epicsPath = `${PLANNING_DIR}/epics.md`;
+  return fileExists(epicsPath)
     ? { pass: true }
-    : { pass: false, reason: 'docs/planning/epics.md manquant' };
+    : { pass: false, reason: `${epicsPath} manquant` };
 });
 
 check('Phase ACT (Planning)', 'Au moins 1 User Story', () => {
-  if (!fs.existsSync('docs/planning/us')) return { pass: false, reason: 'Dossier docs/planning/us/ manquant' };
-  const uss = fs.readdirSync('docs/planning/us').filter(f => f.startsWith('US-'));
+  if (!fs.existsSync(US_DIR)) return { pass: false, reason: `Dossier ${US_DIR}/ manquant` };
+  const uss = fs.readdirSync(US_DIR).filter(f => f.startsWith('US-'));
   return uss.length > 0
     ? { pass: true, detail: `${uss.length} US` }
     : { pass: false, reason: 'Aucune User Story trouvee' };
 });
 
 check('Phase ACT (Planning)', 'Au moins 1 Task', () => {
-  if (!fs.existsSync('docs/planning/tasks')) return { pass: false, reason: 'Dossier docs/planning/tasks/ manquant' };
-  const tasks = fs.readdirSync('docs/planning/tasks').filter(f => f.startsWith('TASK-'));
+  if (!fs.existsSync(TASKS_DIR)) return { pass: false, reason: `Dossier ${TASKS_DIR}/ manquant` };
+  const tasks = fs.readdirSync(TASKS_DIR).filter(f => f.startsWith('TASK-'));
   return tasks.length > 0
     ? { pass: true, detail: `${tasks.length} tasks` }
     : { pass: false, reason: 'Aucune task trouvee' };
 });
 
 check('Phase ACT (Planning)', 'Task app-assembly existe', () => {
-  if (!fs.existsSync('docs/planning/tasks')) return { pass: false, reason: 'Dossier tasks/ manquant' };
-  const tasks = fs.readdirSync('docs/planning/tasks');
+  if (!fs.existsSync(TASKS_DIR)) return { pass: false, reason: `Dossier ${TASKS_DIR}/ manquant` };
+  const tasks = fs.readdirSync(TASKS_DIR);
   const assembly = tasks.find(f => f.includes('app-assembly'));
   return assembly
     ? { pass: true, detail: assembly }
@@ -209,15 +216,15 @@ check('Phase ACT (Planning)', 'Task app-assembly existe', () => {
 // --- Nouvelle verification : alignment architectural dans les tasks ---
 
 check('Phase ACT (Planning)', 'Tasks contiennent Alignment architectural', () => {
-  if (!fs.existsSync('docs/planning/tasks')) return { skip: true, reason: 'Pas de tasks' };
-  const tasks = fs.readdirSync('docs/planning/tasks').filter(f => f.startsWith('TASK-') && f.endsWith('.md'));
+  if (!fs.existsSync(TASKS_DIR)) return { skip: true, reason: 'Pas de tasks' };
+  const tasks = fs.readdirSync(TASKS_DIR).filter(f => f.startsWith('TASK-') && f.endsWith('.md'));
   if (tasks.length === 0) return { skip: true, reason: 'Aucune task' };
 
   let withAlignment = 0;
   let withoutAlignment = [];
 
   for (const task of tasks) {
-    const content = fs.readFileSync(path.join('docs/planning/tasks', task), 'utf-8');
+    const content = fs.readFileSync(path.join(TASKS_DIR, task), 'utf-8');
     if (/[Aa]lignment architectural/i.test(content) || /Layer.*Concept/i.test(content)) {
       withAlignment++;
     } else {
@@ -242,13 +249,13 @@ check('Phase ACT (Planning)', 'Tasks contiennent Alignment architectural', () =>
 });
 
 check('Phase ACT (Planning)', 'Tasks contiennent DoD boundaries', () => {
-  if (!fs.existsSync('docs/planning/tasks')) return { skip: true, reason: 'Pas de tasks' };
-  const tasks = fs.readdirSync('docs/planning/tasks').filter(f => f.startsWith('TASK-') && f.endsWith('.md'));
+  if (!fs.existsSync(TASKS_DIR)) return { skip: true, reason: 'Pas de tasks' };
+  const tasks = fs.readdirSync(TASKS_DIR).filter(f => f.startsWith('TASK-') && f.endsWith('.md'));
   if (tasks.length === 0) return { skip: true, reason: 'Aucune task' };
 
   let withBoundary = 0;
   for (const task of tasks) {
-    const content = fs.readFileSync(path.join('docs/planning/tasks', task), 'utf-8');
+    const content = fs.readFileSync(path.join(TASKS_DIR, task), 'utf-8');
     if (/[Bb]oundar/i.test(content) || /inter-couches/i.test(content) || /d[ée]pendance/i.test(content)) {
       withBoundary++;
     }

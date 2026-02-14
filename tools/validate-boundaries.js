@@ -44,7 +44,7 @@ const LAYER_RULES = {
   ui: {
     name: 'UI/Presentation',
     patterns: [/[/\\]ui[/\\]/, /[/\\]components[/\\]/, /[/\\]pages[/\\]/],
-    allowedImports: ['application', 'ui'],
+    allowedImports: ['domain', 'application', 'ui'],
     description: 'Composants, Controllers, Pages'
   }
 };

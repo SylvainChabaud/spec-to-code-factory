@@ -12,6 +12,21 @@
 import fs from 'fs';
 
 const INSTRUMENTATION_FILE = 'docs/factory/instrumentation.json';
+const STATE_FILE = 'docs/factory/state.json';
+
+/**
+ * Load evolution mode from state.json
+ * @returns {'greenfield'|'brownfield'} Current evolution mode
+ */
+function getEvolutionMode() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      return state.evolutionMode || 'greenfield';
+    }
+  } catch (e) { /* fallback */ }
+  return 'greenfield';
+}
 
 /**
  * Known items in the factory pipeline
@@ -25,12 +40,14 @@ const INSTRUMENTATION_FILE = 'docs/factory/instrumentation.json';
  * - instrumentation/collector.js: The collector itself, always used
  */
 const KNOWN_ITEMS = {
-  // Factory tools expected in a normal pipeline run (12 total)
+  // Factory tools expected in a normal pipeline run (14 total)
   tools: [
     'factory-state.js',
     'factory-log.js',
     'gate-check.js',
     'set-current-task.js',
+    'detect-requirements.js',
+    'get-planning-version.js',
     'validate-requirements.js',
     'validate-code-quality.js',
     'validate-structure.js',
@@ -41,7 +58,7 @@ const KNOWN_ITEMS = {
     'export-release.js'
   ],
 
-  // Templates (18 total)
+  // Templates (19 total)
   templates: [
     // Phase BREAK (Analyst)
     'templates/break/brief-template.md',
@@ -52,6 +69,7 @@ const KNOWN_ITEMS = {
     'templates/specs/system.md',
     'templates/specs/domain.md',
     'templates/specs/api.md',
+    'templates/specs/project-config.json',
     'templates/adr/ADR-template.md',
     'templates/rule.md',
     // Phase ACT-PLAN (Scrum Master)
@@ -67,7 +85,8 @@ const KNOWN_ITEMS = {
     // Note: README.template.md is used by export-release.js (subprocess, not tracked by hooks)
   ],
 
-  // Skills expected in a normal /factory-run pipeline
+  // Skills expected in a pipeline run
+  // Adapted by getExpectedSkills() based on evolution mode
   // Excluded: factory-resume (only after interruption), gate-check (manual)
   skills: [
     'factory-intake',
@@ -93,8 +112,8 @@ const KNOWN_ITEMS = {
   gates: [0, 1, 2, 3, 4, 5],
 
   // Pipeline phases (alignés avec factory-state.js)
-  // Note: ACT est subdivisé en 'plan' et 'build' dans factory-state.js
-  phases: ['BREAK', 'MODEL', 'PLAN', 'BUILD', 'DEBRIEF']
+  // ACT est subdivisé en ACT_PLAN et ACT_BUILD dans factory-state.js
+  phases: ['BREAK', 'MODEL', 'ACT_PLAN', 'ACT_BUILD', 'DEBRIEF']
 };
 
 /**
@@ -233,13 +252,19 @@ function extractUsedSkills(events) {
 
 /**
  * Extract used agents from events
+ * Filters out phantom agents (lifecycle values that aren't real agent names)
  */
 function extractUsedAgents(events) {
   const used = new Set();
+  const validAgents = new Set(KNOWN_ITEMS.agents);
 
   for (const event of events) {
     if (event.type === 'agent_delegated' && event.data.agent) {
-      used.add(event.data.agent);
+      const agent = event.data.agent.toLowerCase();
+      // Only count known agents, ignore lifecycle values like "evolve-started"
+      if (validAgents.has(agent)) {
+        used.add(agent);
+      }
     }
   }
 
@@ -287,6 +312,15 @@ function calculateCoverage(data = null) {
   }
 
   const events = data.events || [];
+  const mode = getEvolutionMode();
+
+  // Adapt expected items based on evolution mode
+  const expectedSkills = mode === 'brownfield'
+    ? KNOWN_ITEMS.skills.map(s => s === 'factory-run' ? 'factory-evolve' : s)
+    : [...KNOWN_ITEMS.skills];
+
+  // Gates: always expect all gates (Gate 0 is checked even in brownfield)
+  const expectedGates = [...KNOWN_ITEMS.gates];
 
   const usedTools = extractUsedTools(events);
   const usedTemplates = extractUsedTemplates(events);
@@ -314,10 +348,10 @@ function calculateCoverage(data = null) {
     },
     Skills: {
       used: usedSkills.size,
-      total: KNOWN_ITEMS.skills.length,
+      total: expectedSkills.length,
       items: {
         used: Array.from(usedSkills),
-        unused: KNOWN_ITEMS.skills.filter(s => !usedSkills.has(s))
+        unused: expectedSkills.filter(s => !usedSkills.has(s))
       }
     },
     Agents: {
@@ -330,10 +364,10 @@ function calculateCoverage(data = null) {
     },
     Gates: {
       used: checkedGates.size,
-      total: KNOWN_ITEMS.gates.length,
+      total: expectedGates.length,
       items: {
         checked: Array.from(checkedGates).sort((a, b) => a - b),
-        unchecked: KNOWN_ITEMS.gates.filter(g => !checkedGates.has(g))
+        unchecked: expectedGates.filter(g => !checkedGates.has(g))
       }
     },
     Phases: {
@@ -386,6 +420,9 @@ function printCoverageSummary(coverage) {
   console.log(`Overall Coverage: ${coverage.overall}%`);
   console.log(`Total Events: ${coverage.eventCount}`);
   console.log('');
+  console.log('Note: Les metriques Phases et Agents ont une couverture variable car elles dependent');
+  console.log("d'appels Bash en fin de fork (non-deterministe). Skills et Gates sont fiables.");
+  console.log('');
 
   // Show critical unused items
   const criticalUnused = [];
@@ -394,8 +431,10 @@ function printCoverageSummary(coverage) {
     criticalUnused.push(`Gates not checked: ${coverage.categories.Gates.items.unchecked.join(', ')}`);
   }
 
-  if (coverage.categories.Skills.items.unused?.includes('factory-run')) {
-    criticalUnused.push('Main skill factory-run not invoked');
+  const mode = getEvolutionMode();
+  const mainSkill = mode === 'brownfield' ? 'factory-evolve' : 'factory-run';
+  if (coverage.categories.Skills.items.unused?.includes(mainSkill)) {
+    criticalUnused.push(`Main skill ${mainSkill} not invoked`);
   }
 
   if (coverage.categories.Phases.items.pending?.length > 0) {

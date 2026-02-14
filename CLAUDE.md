@@ -45,9 +45,12 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `/factory-plan` : Phase ACT (planning)
 - `/factory-build` : Phase ACT (build)
 - `/factory-qa` : Phase DEBRIEF
-- `/factory-run` : Pipeline complet
-- `/factory-resume` : Reprend le pipeline après interruption
-- `/gate-check [0-5]` : Vérifie un gate
+- `/factory-run` : Pipeline complet (greenfield V1)
+- `/factory-evolve` : Pipeline evolution (brownfield V2+)
+- `/factory-quick` : Quick fix/tweak sans pipeline complet (BMAD Quick Flow)
+- `/factory-resume` : Reprend le pipeline apres interruption
+- `/gate-check [0-5]` : Verifie un gate
+- `/clean` : Remet le projet en état "starter" (supprime tous les artefacts)
 
 ### Commands
 - `/status` : État du pipeline (dashboard détaillé)
@@ -56,17 +59,19 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 
 ## Outils de support
 - `tools/validate-requirements.js` : Validation requirements.md complet (Gate 0)
-- `tools/factory-state.js` : Gestion de l'état machine-readable
+- `tools/factory-state.js` : Gestion de l'etat machine-readable + compteurs
 - `tools/factory-reset.js` : Reset des phases
+- `tools/detect-requirements.js` : Detection automatique du dernier requirements-N.md
+- `tools/get-planning-version.js` : Obtenir le repertoire planning actif (vN)
 - `tools/set-current-task.js` : Tracking de la task courante
-- `tools/validate-file-scope.js` : Validation anti-dérive
+- `tools/validate-file-scope.js` : Validation anti-derive
 - `tools/validate-code-quality.js` : Validation code vs specs (mode STRICT)
 - `tools/validate-structure.js` : Validation structure projet (Gate 1)
 - `tools/scan-secrets.js` : Scan secrets et PII (Gate 2)
 - `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4) - **supporte Clean Arch**
-- `tools/validate-boundaries.js` : Validation des règles d'import inter-couches (Gate 4)
+- `tools/validate-boundaries.js` : Validation des regles d'import inter-couches (Gate 4)
 - `tools/export-release.js` : Export du projet livrable (Gate 5)
-- `tools/verify-pipeline.js` : Vérification post-pipeline complète (toutes phases)
+- `tools/verify-pipeline.js` : Verification post-pipeline complete (toutes phases)
 
 ## Permissions simplifiées
 
@@ -151,10 +156,36 @@ Le pipeline inclut une validation stricte du code généré contre les specs :
 | App assembly (composants/hooks) | ≥ 50% | Oui |
 | Boundaries architecturales | 0 violation | Oui |
 
-**Support Clean Architecture** : App.tsx recherché dans `src/App.tsx` OU `src/ui/App.tsx`.
-Components et hooks dans `src/components/` ou `src/ui/components/`.
+**Support Clean Architecture** : Les chemins sont lus depuis `docs/factory/project-config.json`.
+Si le fichier n'existe pas, les valeurs par défaut incluent `src/App.tsx` et `src/ui/App.tsx`.
 
 Usage : `node tools/validate-code-quality.js --gate4`
+
+## Configuration Projet (project-config.json)
+
+Fichier généré par l'agent Architect pendant la phase MODEL.
+Centralise les chemins et seuils de validation pour le projet.
+
+**Emplacement** : `docs/factory/project-config.json`
+**Template** : `templates/specs/project-config.json`
+**Lib** : `tools/lib/project-config.js`
+
+```json
+{
+  "paths": {
+    "app": "src/ui/App.tsx",
+    "components": "src/ui/components/",
+    "hooks": "src/application/",
+    "constants": "src/domain/constants.ts"
+  },
+  "validation": {
+    "appAssembly": { "minLines": 10, "minComponentCoverage": 0.5 },
+    "codeQuality": { "testCoverage": 80, "noMagicNumbers": true }
+  }
+}
+```
+
+Les tools (`gate-check.js`, `validate-*.js`) lisent cette config au lieu d'avoir des valeurs hardcodées.
 
 ## Indépendance des Tasks (BMAD)
 
@@ -203,9 +234,97 @@ node tools/export-release.js [--output <dir>] [--dry-run] [--validate]
 - `release/` : Dossier contenant le projet livrable
 - `docs/factory/release-manifest.json` : Traçabilité de l'export
 
-## Limites (V1)
-- Stack-agnostic (projet cible défini par ADR)
-- Pas de CI/CD intégré (GitHub Actions à ajouter manuellement)
+## Evolution de projet (V2+)
+
+Le pipeline supporte l'evolution incrementale d'un projet existant.
+
+### Modes
+| Mode | Commande | Usage |
+|------|----------|-------|
+| **Greenfield** | `/factory-run` | Nouveau projet (V1) |
+| **Brownfield** | `/factory-evolve` | Evolution (V2, V3...) |
+
+### Structure versionnee
+```
+docs/planning/
+  v1/           # Cree par /factory-run
+    epics.md
+    us/
+    tasks/
+  v2/           # Cree par /factory-evolve
+    epics.md
+    us/
+    tasks/
+```
+
+### Requirements multiples
+```
+input/
+  requirements.md      # V1 (initial)
+  requirements-2.md    # V2 (evolution)
+  requirements-3.md    # V3 (evolution)
+```
+
+### Strategie par type de document
+| Document | V1 | V2+ |
+|----------|----|----|
+| brief, scope, acceptance | CREATE | EDIT (enrichir) |
+| specs (system, domain, api) | CREATE | EDIT (mettre a jour) |
+| planning | CREATE v1/ | CREATE v2/ |
+| ADR | CREATE | CREATE (nouveau) + EDIT status ancien |
+| QA reports | CREATE | CREATE (report-vN.md) |
+| CHANGELOG | CREATE | EDIT (prepend) |
+
+### Compteurs continus
+Les compteurs US/TASK sont **continus** entre versions :
+- V1 : TASK-0001 a TASK-0005
+- V2 : TASK-0006 a TASK-0010
+
+```bash
+node tools/factory-state.js counter task next  # Incremente et retourne
+node tools/factory-state.js counter task get   # Valeur actuelle
+```
+
+## Quick Flow (BMAD)
+
+Pour les modifications mineures sans repasser par le pipeline complet.
+
+### Quand utiliser Quick vs Evolve
+
+| Critere | `/factory-quick` | `/factory-evolve` |
+|---------|------------------|-------------------|
+| Fichiers impactes | <= 3 | > 3 |
+| Nouveau concept metier | Non | Oui |
+| Nouvel endpoint API | Non | Oui |
+| Nouvelle regle business | Non | Oui |
+| Modification specs | Non | Oui |
+
+### Detection automatique
+
+Si `/factory-quick` detecte que la modification necessite une mise a jour des specs :
+
+1. **Option A** : Generer `requirements-N.md` automatiquement (recommande)
+2. **Option B** : Creer manuellement puis `/factory-evolve`
+3. **Option C** : Forcer Quick (risque de derive)
+
+### Workflow Quick
+
+```
+Demande utilisateur
+       │
+       v
+  Analyse conformite specs
+       │
+       ├── Conforme → TASK directe → Implement → Gate 4 light → CHANGELOG
+       │
+       └── Non-conforme → Proposer options A/B/C
+                              │
+                              └── Option A → Generer requirements-N.md → /factory-evolve
+```
+
+## Limites
+- Stack-agnostic (projet cible defini par ADR)
+- Pas de CI/CD integre (GitHub Actions a ajouter manuellement)
 
 ## Templates de structure
 
@@ -225,17 +344,20 @@ Les agents utilisent ces templates pour générer des documents conformes :
 | `templates/specs/system.md` | PM | `docs/specs/system.md` |
 | `templates/specs/domain.md` | PM | `docs/specs/domain.md` |
 | `templates/specs/api.md` | Architect | `docs/specs/api.md` |
+| `templates/specs/project-config.json` | Architect | `docs/factory/project-config.json` |
 | `templates/adr/ADR-template.md` | Architect | `docs/adr/ADR-*.md` |
 | `templates/rule.md` | Rules-Memory | `.claude/rules/*.md` |
 
 ### Phase ACT-PLAN (Scrum Master)
 | Template | Output |
 |----------|--------|
-| `templates/planning/epics-template.md` | `docs/planning/epics.md` |
-| `templates/planning/US-template.md` | `docs/planning/us/US-*.md` |
-| `templates/planning/task-template.md` | `docs/planning/tasks/TASK-*.md` |
-| `templates/planning/task-assembly-template.md` | `docs/planning/tasks/TASK-*-app-assembly.md` |
+| `templates/planning/epics-template.md` | `docs/planning/vN/epics.md` |
+| `templates/planning/US-template.md` | `docs/planning/vN/us/US-*.md` |
+| `templates/planning/task-template.md` | `docs/planning/vN/tasks/TASK-*.md` |
+| `templates/planning/task-assembly-template.md` | `docs/planning/vN/tasks/TASK-*-app-assembly.md` |
 | `templates/testing/plan.md` | `docs/testing/plan.md` |
+
+> **Note** : `vN` = version courante (`v1`, `v2`...). Utiliser `node tools/get-planning-version.js` pour obtenir le chemin.
 
 ### Phase DEBRIEF (QA)
 | Template | Output |

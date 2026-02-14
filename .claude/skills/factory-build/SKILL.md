@@ -19,17 +19,24 @@ Tu es l'orchestrateur de la phase build.
 
 1. **Vérifier Gate 3** : `node tools/gate-check.js 3`
 
-2. **Lister les tasks** : Glob `docs/planning/tasks/TASK-*.md`
+2. **Obtenir le répertoire planning actif** :
+   ```bash
+   node tools/get-planning-version.js
+   # Retourne: { "tasksDir": "docs/planning/v1/tasks", ... }
+   ```
+
+3. **Lister les tasks** : Glob `<tasksDir>/TASK-*.md`
    - **OBLIGATOIRE** : Trier par numéro (TASK-0001 avant TASK-0002, etc.)
    - Utiliser tri numérique : extraire le numéro XXXX et trier par valeur entière
    - Exemple ordre correct : TASK-0001, TASK-0002, TASK-0010, TASK-0100
    - Exemple ordre INCORRECT : TASK-0001, TASK-0010, TASK-0002 (tri alphabétique)
 
-3. **Pour chaque TASK** (dans l'ordre numérique strict) :
+4. **Pour chaque TASK** (dans l'ordre numérique strict, **UNE À LA FOIS**) :
+   > ⚠️ **SÉQUENTIEL OBLIGATOIRE** : Exécuter UN SEUL Task à la fois. Attendre sa completion avant le suivant.
 
    a. **Définir la task courante** (pour anti-dérive automatique) :
       ```bash
-      node tools/set-current-task.js set docs/planning/tasks/TASK-XXXX.md
+      node tools/set-current-task.js set <tasksDir>/TASK-XXXX.md
       ```
 
    b. **Déléguer à l'agent `developer`** via Task tool :
@@ -40,7 +47,7 @@ Tu es l'orchestrateur de la phase build.
       ```
       Task(
         subagent_type: "developer",
-        prompt: "Implémente la task docs/planning/tasks/TASK-XXXX.md",
+        prompt: "Implémente la task <tasksDir>/TASK-XXXX.md",
         description: "Developer - TASK-XXXX"
       )
       ```
@@ -57,14 +64,14 @@ Tu es l'orchestrateur de la phase build.
       node tools/factory-log.js "ACT-BUILD" "task-done" "TASK-XXXX implémentée"
       ```
 
-4. **Exécuter Gate 4** : `node tools/gate-check.js 4`
+5. **Exécuter Gate 4** : `node tools/gate-check.js 4`
 
-5. **Logger** via :
+6. **Logger** via :
    ```bash
    node tools/factory-log.js "ACT" "completed" "Phase BUILD terminee - N tasks implementees"
    ```
 
-6. **Retourner** un résumé des tasks implémentées avec statuts
+7. **Retourner** un résumé des tasks implémentées avec statuts
 
 ## Règle anti-dérive
 

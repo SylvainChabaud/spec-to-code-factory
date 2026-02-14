@@ -26,12 +26,19 @@ Valider, tester, documenter la release.
 - `tests/*`
 - `docs/testing/plan.md`
 
-## Outputs
-- `docs/qa/report.md`
-- `docs/release/checklist.md`
-- `CHANGELOG.md`
+## Outputs (VERSIONNÉS)
 
-> **Note**: L'export vers `release/` est gere par le skill `factory-qa` via `tools/export-release.js` apres validation de cet agent.
+| Mode | Fichier | Action |
+|------|---------|--------|
+| V1 | `docs/qa/report.md` | CREATE |
+| V1 | `docs/release/checklist.md` | CREATE |
+| V1 | `CHANGELOG.md` | CREATE |
+| V2+ | `docs/qa/report-vN.md` | CREATE (nouveau) |
+| V2+ | `docs/release/checklist-vN.md` | CREATE (nouveau) |
+| V2+ | `CHANGELOG.md` | **EDIT** (prepend nouvelle section) |
+
+> **Obtenir la version** : Exécuter `node tools/get-planning-version.js` pour le numéro de version.
+> **Note**: L'export vers `release/` est géré par le skill `factory-qa` via `tools/export-release.js` après validation.
 
 ## Templates à utiliser
 
@@ -47,15 +54,23 @@ Valider, tester, documenter la release.
 
 > ⚠️ Ces actions sont OBLIGATOIRES pour valider une release
 
-1. ✓ Charger `docs/testing/plan.md` et `docs/acceptance.md`
-2. ✓ **Lire les templates** depuis `templates/qa/` et `templates/release/`
-3. ✓ Exécuter TOUS les tests (`npm test` / `pytest` / etc.)
-4. ✓ Vérifier la couverture de code (seuil minimum respecté ?)
-5. ✓ Scanner les vulnérabilités (si applicable)
-6. ✓ Valider chaque critère d'acceptance de `docs/acceptance.md`
-7. ✓ Compléter le rapport QA dans `docs/qa/report.md` (basé sur `report-template.md`)
-8. ✓ Compléter la checklist dans `docs/release/checklist.md` (basé sur `checklist-template.md`)
-9. ✓ Rédiger le CHANGELOG (basé sur `CHANGELOG-template.md`)
+1. ✓ **Obtenir la version courante** :
+   ```bash
+   node tools/get-planning-version.js
+   # Retourne: { "dir": "docs/planning/vN", "version": N, ... }
+   ```
+2. ✓ Charger `docs/testing/plan.md` et `docs/acceptance.md`
+3. ✓ **Lire les templates** depuis `templates/qa/` et `templates/release/`
+4. ✓ Exécuter TOUS les tests (`npm test` / `pytest` / etc.)
+5. ✓ Vérifier la couverture de code (seuil minimum respecté ?)
+6. ✓ Scanner les vulnérabilités (si applicable)
+7. ✓ Valider chaque critère d'acceptance de `docs/acceptance.md`
+8. ✓ Générer les outputs selon la version :
+   - V1 : `docs/qa/report.md`, `docs/release/checklist.md`
+   - V2+ : `docs/qa/report-vN.md`, `docs/release/checklist-vN.md`
+9. ✓ Rédiger/Mettre à jour le CHANGELOG :
+   - V1 : CREATE `CHANGELOG.md`
+   - V2+ : PREPEND nouvelle section dans `CHANGELOG.md`
 
 ## Format CHANGELOG
 ```markdown

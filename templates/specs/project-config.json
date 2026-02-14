@@ -1,0 +1,51 @@
+{
+  "$schema": "./project-config.schema.json",
+  "_comment": "Configuration projet generee par l'agent Architect pendant la phase MODEL",
+
+  "project": {
+    "name": "{{NOM_PROJET}}",
+    "version": "1.0.0",
+    "type": "{{web-spa|api|cli|library}}"
+  },
+
+  "architecture": {
+    "style": "{{clean|layered|hexagonal|simple}}",
+    "layers": {
+      "domain": "src/domain/",
+      "application": "src/application/",
+      "infrastructure": "src/infrastructure/",
+      "ui": "src/ui/"
+    }
+  },
+
+  "paths": {
+    "app": "{{src/App.tsx|src/ui/App.tsx|src/main.ts}}",
+    "components": "{{src/components/|src/ui/components/}}",
+    "hooks": "{{src/hooks/|src/application/}}",
+    "constants": "{{src/constants.ts|src/domain/constants.ts}}",
+    "tests": "{{src/**/*.test.ts|tests/}}"
+  },
+
+  "validation": {
+    "appAssembly": {
+      "enabled": true,
+      "minLines": 10,
+      "minComponentCoverage": 0.5,
+      "minHookCoverage": 0.5
+    },
+    "boundaries": {
+      "enabled": true,
+      "rules": {
+        "domain": ["!application", "!infrastructure", "!ui"],
+        "application": ["domain", "!infrastructure", "!ui"],
+        "infrastructure": ["domain", "application"],
+        "ui": ["domain", "application"]
+      }
+    },
+    "codeQuality": {
+      "testCoverage": 80,
+      "typescriptStrict": true,
+      "noMagicNumbers": true
+    }
+  }
+}

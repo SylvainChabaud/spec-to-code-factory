@@ -67,19 +67,24 @@ Skill(skill: "factory-plan")
 
 **Phase BUILD** :
 Si une task est en cours (`tasks.current !== null`) :
-1. Définir la task courante :
+1. Obtenir le répertoire planning actif :
    ```bash
-   node tools/set-current-task.js set docs/planning/tasks/[TASK-ID].md
+   node tools/get-planning-version.js
+   # Retourne: { "tasksDir": "docs/planning/v1/tasks", ... }
    ```
-2. Déléguer au developer :
+2. Définir la task courante :
+   ```bash
+   node tools/set-current-task.js set <tasksDir>/[TASK-ID].md
+   ```
+3. Déléguer au developer :
    ```
    Task(
      subagent_type: "developer",
-     prompt: "Continue la task docs/planning/tasks/[TASK-ID].md",
+     prompt: "Continue la task <tasksDir>/[TASK-ID].md",
      description: "Developer - Resume TASK"
    )
    ```
-3. Puis continuer avec les tasks suivantes via `/factory-build`
+4. Puis continuer avec les tasks suivantes via `/factory-build`
 
 Sinon :
 ```

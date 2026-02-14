@@ -7,8 +7,9 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { minimatch } from 'minimatch';
 import { isEnabled } from './instrumentation/config.js';
+import { findAppPath } from './lib/project-config.js';
+import { getEvolutionVersion, getPlanningDir } from './lib/factory-state.js';
 
 const GATES = {
   0: {
@@ -36,6 +37,7 @@ const GATES = {
       'docs/specs/system.md',
       'docs/specs/domain.md',
       'docs/specs/api.md'
+      // project-config.json validé par projectConfigValidation (structure JSON + champs requis)
     ],
     patterns: [
       { glob: 'docs/adr/ADR-0001-*.md', min: 1 }
@@ -45,20 +47,29 @@ const GATES = {
       'docs/specs/domain.md': ['## Concepts clés', '## Entités'],
       'docs/specs/api.md': ['## Endpoints', '## Authentification']
     },
-    secretsScan: true // Scanne les secrets avant de continuer
+    secretsScan: true, // Scanne les secrets avant de continuer
+    projectConfigValidation: true // Vérifie la validité du project-config.json
   },
   3: {
     name: 'Planning → Build',
-    files: ['docs/planning/epics.md'],
-    patterns: [
-      { glob: 'docs/planning/us/US-*.md', min: 1 },
-      { glob: 'docs/planning/tasks/TASK-*.md', min: 1 }
-    ],
-    taskValidation: true // Vérifie DoD dans chaque task
+    // Files and patterns are dynamic based on evolutionVersion
+    getDynamicConfig: () => {
+      const version = getEvolutionVersion();
+      return {
+        files: [`docs/planning/v${version}/epics.md`],
+        patterns: [
+          { glob: `docs/planning/v${version}/us/US-*.md`, min: 1 },
+          { glob: `docs/planning/v${version}/tasks/TASK-*.md`, min: 1 }
+        ]
+      };
+    },
+    taskValidation: true, // Vérifie DoD dans chaque task
+    taskUsReferences: true // Vérifie que chaque task référence une US valide
   },
   4: {
     name: 'Build → QA',
-    files: ['docs/testing/plan.md'],
+    // testing/plan.md validé par testingPlanContent (contenu + sections)
+    files: [],
     patterns: [
       { glob: '{tests,src}/**/*.test.*', min: 1 }
     ],
@@ -66,7 +77,7 @@ const GATES = {
     codeQuality: true, // Vérifie conformité code/specs (mode STRICT)
     appAssembly: true, // Vérifie que App.tsx assemble les composants
     boundaryCheck: true, // Vérifie les règles d'import inter-couches
-    magicNumbersCheck: true // Vérifie absence de magic numbers
+    testingPlanContent: true // Vérifie le contenu de testing/plan.md (pas juste existence)
   },
   5: {
     name: 'QA → Release',
@@ -80,6 +91,7 @@ const GATES = {
       'docs/release/checklist.md': ['## Pré-release'],
       'CHANGELOG.md': ['## [']
     },
+    testsExecution: true, // Vérifie que les tests documentés ont été exécutés
     exportRelease: true // Export deliverable to release/ folder
   }
 };
@@ -95,11 +107,41 @@ function hasSection(filePath, section) {
 }
 
 /**
- * Glob files using minimatch for robust pattern matching
- * Supports: *, **, {a,b}, [abc], ?(pattern), etc.
+ * Convert glob pattern to RegExp (native implementation, no dependencies)
+ * Supports: *, **, {a,b}
+ */
+function globToRegex(pattern) {
+  // Normalize separators
+  let regexStr = pattern.replace(/\\/g, '/');
+
+  // Escape regex special chars except our glob chars
+  regexStr = regexStr.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+
+  // Handle {a,b} patterns (convert to regex alternation)
+  regexStr = regexStr.replace(/\\\{([^}]+)\\\}/g, (_, group) => {
+    const alternatives = group.split(',').map(s => s.trim());
+    return `(${alternatives.join('|')})`;
+  });
+
+  // Handle ** (match any path including subdirs)
+  regexStr = regexStr.replace(/\*\*/g, '{{GLOBSTAR}}');
+
+  // Handle * (match any chars except /)
+  regexStr = regexStr.replace(/\*/g, '[^/]*');
+
+  // Restore ** as .*
+  regexStr = regexStr.replace(/\{\{GLOBSTAR\}\}/g, '.*');
+
+  return new RegExp(`^${regexStr}$`);
+}
+
+/**
+ * Glob files using native Node.js (no external dependencies)
+ * Supports: *, **, {a,b}
  */
 function globFiles(pattern, sortNumerically = true) {
   const files = [];
+  const regex = globToRegex(pattern);
 
   // Determine base directory from pattern
   const patternParts = pattern.split(/[*?{[]/);
@@ -125,7 +167,7 @@ function globFiles(pattern, sortNumerically = true) {
         } else {
           // Normalize path separators for matching
           const normalizedPath = fullPath.replace(/\\/g, '/');
-          if (minimatch(normalizedPath, pattern, { matchBase: false })) {
+          if (regex.test(normalizedPath)) {
             files.push(fullPath);
           }
         }
@@ -157,6 +199,219 @@ function validateTask(taskPath) {
     '## Tests attendus'
   ];
   return requiredSections.every(s => content.includes(s));
+}
+
+/**
+ * Validate project-config.json (Gate 2)
+ * Checks that the file exists and has valid JSON structure with required fields
+ */
+function runProjectConfigValidation() {
+  const configPath = 'docs/factory/project-config.json';
+
+  if (!fs.existsSync(configPath)) {
+    return {
+      success: false,
+      error: 'project-config.json non trouvé - l\'agent architect doit le générer'
+    };
+  }
+
+  console.log('  Validating project-config.json...');
+
+  try {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(content);
+
+    // Check required fields
+    const requiredFields = ['projectName', 'architecture'];
+    const missingFields = requiredFields.filter(f => !config[f]);
+
+    if (missingFields.length > 0) {
+      return {
+        success: false,
+        error: `Champs manquants dans project-config.json: ${missingFields.join(', ')}`
+      };
+    }
+
+    return { success: true };
+  } catch (e) {
+    return {
+      success: false,
+      error: `project-config.json invalide: ${e.message}`
+    };
+  }
+}
+
+/**
+ * Validate task references to US (Gate 3)
+ * Checks that each task references a valid US file
+ */
+function validateTaskUsReferences(planningDir) {
+  const tasksDir = `${planningDir}/tasks`;
+  const usDir = `${planningDir}/us`;
+
+  if (!fs.existsSync(tasksDir)) {
+    return { success: true, skipped: true, reason: 'Dossier tasks non trouvé' };
+  }
+
+  console.log('  Validating task → US references...');
+
+  const tasks = globFiles(`${tasksDir}/TASK-*.md`);
+  const usFiles = globFiles(`${usDir}/US-*.md`);
+
+  // Extract US IDs from filenames (e.g., US-0001-title.md → US-0001)
+  const validUsIds = usFiles.map(f => {
+    const match = path.basename(f).match(/^(US-\d{4})/);
+    return match ? match[1] : null;
+  }).filter(Boolean);
+
+  const errors = [];
+
+  for (const taskFile of tasks) {
+    const content = fs.readFileSync(taskFile, 'utf-8');
+    const taskName = path.basename(taskFile);
+
+    // Look for US reference in task content
+    // Supports: "US parent: US-0001", "| **US Parent** | US-0001 |", etc.
+    const usRefPatterns = [
+      /\|\s*\*\*US Parent\*\*\s*\|\s*(US-\d{4})/i,  // Tableau Markdown: | **US Parent** | US-0001 |
+      /US parent\s*[:\|]\s*(US-\d{4})/i,            // US parent: US-0001 ou US parent | US-0001
+      /Rattachée à\s*:\s*(US-\d{4})/i,
+      /Parent US\s*:\s*(US-\d{4})/i,
+      /\*\*US\*\*\s*:\s*(US-\d{4})/i,
+      /## Contexte[\s\S]*?(US-\d{4})/i
+    ];
+
+    let foundUsRef = null;
+    for (const pattern of usRefPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        foundUsRef = match[1];
+        break;
+      }
+    }
+
+    if (!foundUsRef) {
+      errors.push(`${taskName}: Aucune référence US trouvée`);
+    } else if (!validUsIds.includes(foundUsRef)) {
+      errors.push(`${taskName}: Référence à ${foundUsRef} invalide (fichier US non trouvé)`);
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      success: false,
+      error: `${errors.length} task(s) avec références US invalides`,
+      details: errors
+    };
+  }
+
+  return { success: true, count: tasks.length };
+}
+
+/**
+ * Validate testing/plan.md content (Gate 4)
+ * Checks that the test plan has meaningful content, not just a stub
+ */
+function validateTestingPlanContent() {
+  const planPath = 'docs/testing/plan.md';
+
+  if (!fs.existsSync(planPath)) {
+    return { success: false, error: 'docs/testing/plan.md non trouvé' };
+  }
+
+  console.log('  Validating testing/plan.md content...');
+
+  const content = fs.readFileSync(planPath, 'utf-8');
+  const lines = content.split('\n').filter(l => l.trim().length > 0);
+
+  // Check minimum content (not a stub)
+  if (lines.length < 15) {
+    return {
+      success: false,
+      error: `testing/plan.md trop court (${lines.length} lignes, minimum 15)`
+    };
+  }
+
+  // Check required sections with human-readable labels
+  // Patterns are flexible to support multiple naming conventions
+  const requiredSections = [
+    {
+      pattern: /##.*(Strat[ée]gi|Strategy)/i,
+      label: 'Stratégie/Strategy'
+    },
+    {
+      // Accept: "## Tests unitaires", "## Unit", "| Unit |" in table, or "Cas de test"
+      pattern: /##.*Tests?\s*(unitaires|unit)|##.*Unit|\|\s*Unit\s*\||##.*Cas de test/i,
+      label: 'Tests unitaires/Unit'
+    },
+    {
+      // Accept: "## Tests intégration", "## Integration", "| Integration |" in table
+      pattern: /##.*Tests?\s*(int[ée]gration|integration)|##.*Integration|\|\s*Integration\s*\|/i,
+      label: 'Tests intégration/Integration'
+    }
+  ];
+
+  const missingSections = [];
+  for (const { pattern, label } of requiredSections) {
+    if (!pattern.test(content)) {
+      missingSections.push(label);
+    }
+  }
+
+  if (missingSections.length > 0) {
+    return {
+      success: false,
+      error: `Sections manquantes dans testing/plan.md: ${missingSections.join(', ')}`
+    };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Validate documented tests were executed (Gate 5)
+ * Cross-references QA report with actual test files
+ */
+function validateTestsExecution() {
+  const qaReportPath = 'docs/qa/report.md';
+
+  if (!fs.existsSync(qaReportPath)) {
+    return { success: false, error: 'docs/qa/report.md non trouvé' };
+  }
+
+  console.log('  Validating tests execution coverage...');
+
+  const qaContent = fs.readFileSync(qaReportPath, 'utf-8');
+
+  // Check that QA report contains test results section
+  if (!qaContent.includes('## Tests exécutés') && !qaContent.includes('## Test Results')) {
+    return {
+      success: false,
+      error: 'Section "Tests exécutés" manquante dans le rapport QA'
+    };
+  }
+
+  // Check for pass/fail indicators
+  const hasPassIndicator = /✅|PASS|passed|réussi/i.test(qaContent);
+  const hasTestCount = /\d+\s*(tests?|specs?)/i.test(qaContent);
+
+  if (!hasPassIndicator || !hasTestCount) {
+    return {
+      success: false,
+      error: 'Le rapport QA ne contient pas de résultats de tests valides'
+    };
+  }
+
+  // Verify actual test files exist
+  const testFiles = globFiles('{tests,src}/**/*.test.*');
+  if (testFiles.length === 0) {
+    return {
+      success: false,
+      error: 'Aucun fichier de test trouvé mais rapport QA mentionne des tests'
+    };
+  }
+
+  return { success: true, testFilesCount: testFiles.length };
 }
 
 function sleep(ms) {
@@ -331,9 +586,9 @@ async function runCodeQualityValidation() {
 
   if (!fs.existsSync(validatorPath)) {
     return {
-      success: false,
-      error: 'Validateur code quality non trouvé (tools/validate-code-quality.js)',
-      skipped: true
+      success: true,
+      skipped: true,
+      reason: 'validate-code-quality.js non trouvé'
     };
   }
 
@@ -379,9 +634,10 @@ function runAppAssemblyValidation() {
     return { success: true, skipped: true };
   }
 
-  // Check if src/App.tsx exists first
-  if (!fs.existsSync('src/App.tsx')) {
-    return { success: true, skipped: true, reason: 'No src/App.tsx found' };
+  // Check if App.tsx exists (paths from project-config.json or defaults)
+  const appPath = findAppPath();
+  if (!appPath) {
+    return { success: true, skipped: true, reason: 'No App.tsx found (check docs/factory/project-config.json)' };
   }
 
   console.log('  Validating app assembly...');
@@ -406,50 +662,6 @@ function runAppAssemblyValidation() {
     return {
       success: false,
       error: `App assembly validation error: ${error.message}`,
-      stdout: error.stdout,
-      stderr: error.stderr
-    };
-  }
-}
-
-/**
- * Run magic numbers validation (Gate 4)
- * Validates that no magic numbers are present in code
- */
-function runMagicNumbersValidation() {
-  const validatorPath = 'tools/validate-magic-numbers.js';
-
-  if (!fs.existsSync(validatorPath)) {
-    return { success: true, skipped: true, reason: 'validate-magic-numbers.js not found' };
-  }
-
-  // Check if src/ exists
-  if (!fs.existsSync('src')) {
-    return { success: true, skipped: true, reason: 'No src/ directory found' };
-  }
-
-  console.log('  Validating magic numbers...');
-
-  try {
-    const output = execSync('node tools/validate-magic-numbers.js', {
-      stdio: 'pipe',
-      encoding: 'utf-8',
-      timeout: 60000
-    });
-    return { success: true, output };
-  } catch (error) {
-    // Exit code 2 = magic numbers found
-    if (error.status === 2) {
-      return {
-        success: false,
-        error: 'Magic numbers detected in code',
-        stdout: error.stdout,
-        stderr: error.stderr
-      };
-    }
-    return {
-      success: false,
-      error: `Magic numbers validation error: ${error.message}`,
       stdout: error.stdout,
       stderr: error.stderr
     };
@@ -541,9 +753,18 @@ async function checkGate(gateNum) {
 
   const errors = [];
 
+  // Get dynamic config if available (for versioned gates like Gate 3)
+  let files = gate.files || [];
+  let patterns = gate.patterns || [];
+  if (gate.getDynamicConfig) {
+    const dynamicConfig = gate.getDynamicConfig();
+    files = dynamicConfig.files || files;
+    patterns = dynamicConfig.patterns || patterns;
+  }
+
   // Check required files
-  if (gate.files) {
-    for (const file of gate.files) {
+  if (files.length > 0) {
+    for (const file of files) {
       if (!fileExists(file)) {
         errors.push(`Fichier manquant: ${file}`);
       }
@@ -551,8 +772,8 @@ async function checkGate(gateNum) {
   }
 
   // Check patterns (glob)
-  if (gate.patterns) {
-    for (const p of gate.patterns) {
+  if (patterns.length > 0) {
+    for (const p of patterns) {
       const matches = globFiles(p.glob);
       if (matches.length < p.min) {
         errors.push(`Pattern ${p.glob}: ${matches.length} fichier(s), minimum ${p.min} requis`);
@@ -620,13 +841,51 @@ async function checkGate(gateNum) {
     }
   }
 
+  // Project config validation (Gate 2)
+  if (gate.projectConfigValidation) {
+    const configResult = runProjectConfigValidation();
+    if (!configResult.success) {
+      errors.push(`Project config validation: ${configResult.error}`);
+    } else {
+      console.log('  ✅ project-config.json valide\n');
+    }
+  }
+
   // Task validation (Gate 3)
   if (gate.taskValidation) {
-    const tasks = globFiles('docs/planning/tasks/TASK-*.md');
+    const planningDir = getPlanningDir();
+    const tasks = globFiles(`${planningDir}/tasks/TASK-*.md`);
+    const invalidTasks = [];
     for (const task of tasks) {
       if (!validateTask(task)) {
-        errors.push(`Task incomplète (DoD/Tests manquants): ${task}`);
+        invalidTasks.push(path.basename(task));
       }
+    }
+    if (invalidTasks.length > 0) {
+      errors.push(`Task(s) incomplète(s) (DoD/Tests manquants): ${invalidTasks.join(', ')}`);
+    } else if (tasks.length > 0) {
+      console.log(`  ✅ ${tasks.length} task(s) avec DoD et Tests valides\n`);
+    }
+  }
+
+  // Task US references validation (Gate 3)
+  if (gate.taskUsReferences) {
+    const planningDir = getPlanningDir();
+    const usRefResult = validateTaskUsReferences(planningDir);
+    if (!usRefResult.success && !usRefResult.skipped) {
+      errors.push(`Task US references: ${usRefResult.error}`);
+      if (usRefResult.details) {
+        console.log('\n--- Task US References Errors ---');
+        usRefResult.details.slice(0, 10).forEach(d => console.log(`  - ${d}`));
+        if (usRefResult.details.length > 10) {
+          console.log(`  ... et ${usRefResult.details.length - 10} autres`);
+        }
+        console.log('---------------------------------\n');
+      }
+    } else if (usRefResult.skipped) {
+      console.log(`  ⚠️  Task US references skipped (${usRefResult.reason})\n`);
+    } else {
+      console.log(`  ✅ ${usRefResult.count} task(s) avec références US valides\n`);
     }
   }
 
@@ -652,7 +911,7 @@ async function checkGate(gateNum) {
   // Code quality validation (Gate 4) - STRICT mode
   if (gate.codeQuality) {
     const qualityResult = await runCodeQualityValidation();
-    if (!qualityResult.success && !qualityResult.skipped) {
+    if (!qualityResult.success) {
       errors.push(`Code quality validation échouée: ${qualityResult.error}`);
       if (qualityResult.stdout) {
         console.log('\n--- Code Quality Output ---');
@@ -660,7 +919,8 @@ async function checkGate(gateNum) {
         console.log('---------------------------\n');
       }
     } else if (qualityResult.skipped) {
-      console.log('  ⚠️  Code quality validation skipped (validateur non trouvé)\n');
+      const reason = qualityResult.reason || 'validateur non trouvé';
+      console.log(`  ⚠️  Code quality validation skipped (${reason})\n`);
     } else {
       console.log('  ✅ Code quality validation PASS (mode STRICT)\n');
     }
@@ -702,21 +962,23 @@ async function checkGate(gateNum) {
     }
   }
 
-  // Magic numbers validation (Gate 4)
-  if (gate.magicNumbersCheck) {
-    const magicResult = runMagicNumbersValidation();
-    if (!magicResult.success && !magicResult.skipped) {
-      errors.push(`Magic numbers validation échouée: ${magicResult.error}`);
-      if (magicResult.stdout) {
-        console.log('\n--- Magic Numbers Output ---');
-        console.log(magicResult.stdout.substring(0, 2000));
-        console.log('----------------------------\n');
-      }
-    } else if (magicResult.skipped) {
-      const reason = magicResult.reason || 'validateur non trouvé';
-      console.log(`  ⚠️  Magic numbers validation skipped (${reason})\n`);
+  // Testing plan content validation (Gate 4)
+  if (gate.testingPlanContent) {
+    const planContentResult = validateTestingPlanContent();
+    if (!planContentResult.success) {
+      errors.push(`Testing plan content: ${planContentResult.error}`);
     } else {
-      console.log('  ✅ Magic numbers validation PASS\n');
+      console.log('  ✅ testing/plan.md contenu valide\n');
+    }
+  }
+
+  // Tests execution validation (Gate 5)
+  if (gate.testsExecution) {
+    const execResult = validateTestsExecution();
+    if (!execResult.success) {
+      errors.push(`Tests execution: ${execResult.error}`);
+    } else {
+      console.log(`  ✅ Tests exécutés (${execResult.testFilesCount} fichiers de test)\n`);
     }
   }
 

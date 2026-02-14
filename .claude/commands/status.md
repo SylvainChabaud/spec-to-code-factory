@@ -23,9 +23,15 @@ Note : gate-check retourne exit code 0 (PASS) ou 2 (FAIL).
 
 ### 3. Compter les artefacts
 
+Obtenir la version courante :
+```bash
+node tools/get-planning-version.js
+# Retourne: { "tasksDir": "docs/planning/vN/tasks", "usDir": "docs/planning/vN/us", ... }
+```
+
 Utiliser Glob pour compter :
-- `docs/planning/tasks/TASK-*.md` → nombre de tasks
-- `docs/planning/us/US-*.md` → nombre de user stories
+- `<tasksDir>/TASK-*.md` → nombre de tasks
+- `<usDir>/US-*.md` → nombre de user stories
 - `docs/adr/ADR-*.md` → nombre d'ADRs
 - `tests/**/*.test.*` → nombre de tests
 

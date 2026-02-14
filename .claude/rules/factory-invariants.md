@@ -7,7 +7,7 @@
 ## No Spec, No Code
 Aucun code dans src/ sans :
 - docs/specs/*.md validés (Gate 2 passé)
-- docs/planning/tasks/TASK-*.md avec DoD
+- docs/planning/vN/tasks/TASK-*.md avec DoD (N = version courante)
 
 ## No Task, No Commit
 Chaque commit DOIT référencer une TASK-XXXX.

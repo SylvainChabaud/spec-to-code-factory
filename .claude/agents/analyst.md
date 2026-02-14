@@ -24,16 +24,28 @@ Transformer un requirements.md brut en brief/scope/acceptance exploitables.
 > **Cette phase est CRITIQUE** : Le cadrage du besoin détermine la qualité de tout le projet.
 
 ## Inputs
-- `input/requirements.md`
+- `input/requirements.md` ou `input/requirements-N.md` (détection automatique)
 - `input/adr-initial.md` (si existe)
 - `input/wireframes/*` (si existe)
 - `input/api-examples/*` (si existe)
 
+> **Détection automatique** : Exécuter `node tools/detect-requirements.js` pour trouver le dernier fichier requirements.
+
 ## Outputs
-- `docs/brief.md`
-- `docs/scope.md`
-- `docs/acceptance.md`
-- `docs/factory/questions.md` (questions + réponses)
+
+| Mode | Fichier | Action |
+|------|---------|--------|
+| Greenfield (V1) | `docs/brief.md` | CREATE |
+| Greenfield (V1) | `docs/scope.md` | CREATE |
+| Greenfield (V1) | `docs/acceptance.md` | CREATE |
+| Greenfield (V1) | `docs/factory/questions.md` | CREATE |
+| Brownfield (V2+) | `docs/brief.md` | **EDIT** (enrichir) |
+| Brownfield (V2+) | `docs/scope.md` | **EDIT** (enrichir) |
+| Brownfield (V2+) | `docs/acceptance.md` | **EDIT** (enrichir) |
+| Brownfield (V2+) | `docs/factory/questions-vN.md` | CREATE (nouveau fichier)
+
+> **Mode Evolution** : En mode brownfield, les docs existants sont ÉDITÉS (pas recréés).
+> Les questions sont versionnées : `questions.md` (V1), `questions-v2.md` (V2), etc.
 
 ## Templates à utiliser
 
@@ -105,11 +117,21 @@ AskUserQuestion(
 
 > ⚠️ Ces actions sont OBLIGATOIRES avant toute production de documents
 
-1. ✓ Lire `input/requirements.md` **ENTIÈREMENT** avant toute action
-2. ✓ Identifier et classifier les ambiguïtés : 🔴 bloquant / 🟡 optionnel
-3. ✓ Poser les questions critiques via `AskUserQuestion`
-4. ✓ Documenter chaque Q/R dans `docs/factory/questions.md`
-5. ✓ Tracer l'impact de chaque réponse sur le brief
+1. ✓ **Détecter le fichier requirements** :
+   ```bash
+   node tools/detect-requirements.js
+   # Retourne: { "file": "input/requirements-N.md", "version": N, "isEvolution": true/false }
+   ```
+2. ✓ Lire le fichier requirements détecté **ENTIÈREMENT**
+3. ✓ **Déterminer le mode** :
+   - Si `isEvolution: false` → Mode **Greenfield** (CREATE)
+   - Si `isEvolution: true` → Mode **Brownfield** (EDIT docs existants)
+4. ✓ Identifier et classifier les ambiguïtés : 🔴 bloquant / 🟡 optionnel
+5. ✓ Poser les questions critiques via `AskUserQuestion`
+6. ✓ Documenter chaque Q/R :
+   - V1 : `docs/factory/questions.md`
+   - V2+ : `docs/factory/questions-vN.md`
+7. ✓ Tracer l'impact de chaque réponse sur le brief
 
 ## Anti-dérive
 - Ne PAS inventer de fonctionnalités non mentionnées

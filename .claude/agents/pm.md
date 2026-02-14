@@ -26,8 +26,16 @@ Produire les specs fonctionnelles depuis le brief.
 - `docs/scope.md`
 
 ## Outputs
-- `docs/specs/system.md`
-- `docs/specs/domain.md`
+
+| Mode | Fichier | Action |
+|------|---------|--------|
+| Greenfield (V1) | `docs/specs/system.md` | CREATE |
+| Greenfield (V1) | `docs/specs/domain.md` | CREATE |
+| Brownfield (V2+) | `docs/specs/system.md` | **EDIT** (mettre à jour) |
+| Brownfield (V2+) | `docs/specs/domain.md` | **EDIT** (mettre à jour) |
+
+> **Mode Evolution** : Exécuter `node tools/detect-requirements.js` pour déterminer le mode.
+> En brownfield, les specs existantes sont ÉDITÉES (pas recréées).
 
 ## Actions Critiques
 

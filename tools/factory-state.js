@@ -8,6 +8,8 @@
  *   node tools/factory-state.js set <key> <value>       # Set a value
  *   node tools/factory-state.js phase <name> <status>   # Update phase status
  *   node tools/factory-state.js task <id> <status>      # Update task status
+ *   node tools/factory-state.js counter <type> get      # Get counter value
+ *   node tools/factory-state.js counter <type> next     # Increment and get next counter
  *   node tools/factory-state.js init                    # Initialize state file
  *   node tools/factory-state.js reset                   # Reset to initial state
  *
@@ -26,6 +28,16 @@ const STATE_DIR = path.dirname(STATE_FILE);
 
 const INITIAL_STATE = {
   version: '1.0.0',
+  // Evolution tracking
+  evolutionVersion: 1,                    // 1 = V1, 2 = V2, etc.
+  evolutionMode: 'greenfield',            // 'greenfield' | 'brownfield'
+  // Counters for continuous numbering across versions
+  counters: {
+    epic: 0,
+    us: 0,
+    task: 0,
+    adr: 0
+  },
   pipeline: {
     status: 'idle', // idle, running, paused, completed, failed
     startedAt: null,
@@ -247,6 +259,39 @@ function cmdReset() {
   console.log('State reset to initial');
 }
 
+function cmdCounter(counterType, action) {
+  const validTypes = ['epic', 'us', 'task', 'adr'];
+  const validActions = ['get', 'next'];
+
+  if (!validTypes.includes(counterType)) {
+    console.error(`Invalid counter type: ${counterType}. Valid: ${validTypes.join(', ')}`);
+    process.exit(1);
+  }
+
+  if (!validActions.includes(action)) {
+    console.error(`Invalid action: ${action}. Valid: ${validActions.join(', ')}`);
+    process.exit(1);
+  }
+
+  const state = loadState();
+
+  // Ensure counters object exists (for backward compatibility)
+  if (!state.counters) {
+    state.counters = { epic: 0, us: 0, task: 0, adr: 0 };
+  }
+
+  if (action === 'get') {
+    console.log(state.counters[counterType]);
+  } else if (action === 'next') {
+    state.counters[counterType]++;
+    saveState(state);
+    // Format with leading zeros: EPIC-001, US-0001, TASK-0001, ADR-0001
+    const padLength = counterType === 'epic' ? 3 : 4;
+    const formatted = String(state.counters[counterType]).padStart(padLength, '0');
+    console.log(formatted);
+  }
+}
+
 // Main
 const command = process.argv[2];
 const arg1 = process.argv[3];
@@ -293,6 +338,16 @@ switch (command) {
     cmdReset();
     break;
 
+  case 'counter':
+    if (!arg1 || !arg2) {
+      console.error('Usage: node tools/factory-state.js counter <type> <action>');
+      console.error('Types: epic, us, task, adr');
+      console.error('Actions: get, next');
+      process.exit(1);
+    }
+    cmdCounter(arg1, arg2);
+    break;
+
   default:
     console.log('Usage: node tools/factory-state.js <command> [args]');
     console.log('');
@@ -302,6 +357,7 @@ switch (command) {
     console.log('  phase <name> <status>  Update phase (break|model|plan|build|debrief)');
     console.log('  task <id> <status>     Update task (pending|running|completed|failed)');
     console.log('  gate <num> <status>    Update gate (0-5)');
+    console.log('  counter <type> <action> Get/increment counter (epic|us|task|adr)');
     console.log('  init                   Initialize state file');
     console.log('  reset                  Reset to initial state');
     process.exit(command ? 1 : 0);

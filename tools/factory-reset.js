@@ -21,6 +21,18 @@
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * Get all version directories in planning
+ */
+function getAllPlanningVersions() {
+  const planningDir = 'docs/planning';
+  if (!fs.existsSync(planningDir)) return [];
+
+  return fs.readdirSync(planningDir)
+    .filter(d => /^v\d+$/.test(d))
+    .map(d => path.join(planningDir, d));
+}
+
 const PHASES = {
   intake: {
     name: 'BREAK (intake)',
@@ -44,13 +56,27 @@ const PHASES = {
   plan: {
     name: 'ACT (plan)',
     files: [
-      'docs/planning/epics.md',
       'docs/testing/plan.md'
     ],
-    patterns: [
-      { dir: 'docs/planning/us', exclude: ['US-template.md'] },
-      { dir: 'docs/planning/tasks', exclude: ['TASK-template.md'] }
-    ]
+    // Dynamic patterns for versioned planning directories
+    getDynamicPatterns: () => {
+      const patterns = [];
+      const versionDirs = getAllPlanningVersions();
+      for (const vDir of versionDirs) {
+        patterns.push({ dir: path.join(vDir, 'us'), exclude: [] });
+        patterns.push({ dir: path.join(vDir, 'tasks'), exclude: [] });
+        // Also delete epics.md in each version
+      }
+      return patterns;
+    },
+    getDynamicFiles: () => {
+      const files = [];
+      const versionDirs = getAllPlanningVersions();
+      for (const vDir of versionDirs) {
+        files.push(path.join(vDir, 'epics.md'));
+      }
+      return files;
+    }
   },
   build: {
     name: 'ACT (build)',
@@ -180,15 +206,27 @@ function resetPhase(phaseName) {
 
   let totalDeleted = 0;
 
+  // Get files (static + dynamic)
+  let files = [...(phase.files || [])];
+  if (phase.getDynamicFiles) {
+    files = [...files, ...phase.getDynamicFiles()];
+  }
+
   // Delete specific files
-  for (const file of phase.files) {
+  for (const file of files) {
     if (deleteFile(file)) {
       totalDeleted++;
     }
   }
 
+  // Get patterns (static + dynamic)
+  let patterns = [...(phase.patterns || [])];
+  if (phase.getDynamicPatterns) {
+    patterns = [...patterns, ...phase.getDynamicPatterns()];
+  }
+
   // Clean directories
-  for (const pattern of phase.patterns) {
+  for (const pattern of patterns) {
     totalDeleted += cleanDirectory(pattern.dir, pattern.exclude);
   }
 

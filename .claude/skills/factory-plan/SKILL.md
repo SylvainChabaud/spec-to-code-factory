@@ -11,13 +11,21 @@ Tu es l'orchestrateur de la phase planning.
 
 ## Workflow
 
-0. **Instrumentation** (si activée) - Enregistrer le début de phase :
+0. **Instrumentation et version** - Enregistrer le debut de phase et obtenir la version :
    ```bash
+   # Obtenir la version courante
+   node tools/get-planning-version.js
+   # Retourne: { "dir": "docs/planning/vN", "version": N, ... }
+
+   # Creer le repertoire si necessaire (evolution)
+   mkdir -p docs/planning/v<N>/us
+   mkdir -p docs/planning/v<N>/tasks
+
    node tools/instrumentation/collector.js phase-start "{\"phase\":\"ACT\",\"skill\":\"factory-plan\"}"
    node tools/instrumentation/collector.js skill "{\"skill\":\"factory-plan\"}"
    ```
 
-1. **Vérifier Gate 2** : `node tools/gate-check.js 2`
+1. **Verifier Gate 2** : `node tools/gate-check.js 2`
 
 2. **Déléguer à l'agent `scrum-master`** via Task tool :
    ```bash
@@ -42,17 +50,17 @@ Tu es l'orchestrateur de la phase planning.
    )
    ```
 
-3. **Vérifier les outputs** :
-   - `docs/planning/epics.md` existe
-   - Au moins 1 fichier `docs/planning/us/US-*.md`
-   - Au moins 1 fichier `docs/planning/tasks/TASK-*.md`
+3. **Verifier les outputs** (chemins versionnes) :
+   - `docs/planning/v<N>/epics.md` existe
+   - Au moins 1 fichier `docs/planning/v<N>/us/US-*.md`
+   - Au moins 1 fichier `docs/planning/v<N>/tasks/TASK-*.md`
    - Chaque TASK contient TOUTES ces sections (auto-suffisance BMAD):
      * Objectif technique
-     * Contexte complet (specs référencées avec résumés)
-     * Fichiers concernés (liste exhaustive)
+     * Contexte complet (specs referencees avec resumes)
+     * Fichiers concernes (liste exhaustive)
      * Definition of Done
      * Tests attendus
-     * Critères de validation automatique
+     * Criteres de validation automatique
 
 4. **Exécuter Gate 3** : `node tools/gate-check.js 3`
 

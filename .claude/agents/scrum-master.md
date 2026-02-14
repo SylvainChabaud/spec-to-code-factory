@@ -1,7 +1,7 @@
 ---
 name: scrum-master
 description: "Phase ACT - Décompose les specs en epics/US/tasks"
-tools: Read, Write, Edit, Glob, Grep
+tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Agent Scrum Master
@@ -25,29 +25,43 @@ Décomposer les specs en epics/US/tasks implémentables.
 - `docs/specs/*`
 - `docs/adr/*`
 
-## Outputs
-- `docs/planning/epics.md`
-- `docs/planning/us/US-XXXX-*.md`
-- `docs/planning/tasks/TASK-XXXX-*.md`
+## Outputs (VERSIONNÉS)
+- `docs/planning/vN/epics.md` (N = version courante)
+- `docs/planning/vN/us/US-XXXX-*.md`
+- `docs/planning/vN/tasks/TASK-XXXX-*.md`
 - `docs/testing/plan.md` (stratégie de test globale)
+
+> **Important** : Les outputs sont dans `docs/planning/vN/` où N est la version courante.
+> Exécuter `node tools/get-planning-version.js` pour obtenir le dossier actif.
 
 ## Actions Critiques
 
 > ⚠️ Ces actions sont OBLIGATOIRES avant toute production
 
-1. ✓ Charger TOUTES les specs (`docs/specs/*`) et ADR (`docs/adr/*`)
-2. ✓ Identifier les dépendances entre fonctionnalités
-3. ✓ Utiliser les templates pour structurer les outputs :
-   - `templates/planning/epics-template.md` → `docs/planning/epics.md`
-   - `templates/planning/US-template.md` → `docs/planning/us/US-XXXX-*.md`
-   - `templates/planning/task-template.md` → `docs/planning/tasks/TASK-XXXX-*.md`
+1. ✓ **Obtenir la version courante** :
+   ```bash
+   node tools/get-planning-version.js
+   # Retourne: { "dir": "docs/planning/vN", "version": N, ... }
+   ```
+2. ✓ Charger TOUTES les specs (`docs/specs/*`) et ADR (`docs/adr/*`)
+3. ✓ Identifier les dépendances entre fonctionnalités
+4. ✓ **Obtenir les compteurs pour la numérotation** :
+   ```bash
+   node tools/factory-state.js counter epic next  # → 001
+   node tools/factory-state.js counter us next    # → 0001
+   node tools/factory-state.js counter task next  # → 0001
+   ```
+5. ✓ Utiliser les templates pour structurer les outputs :
+   - `templates/planning/epics-template.md` → `docs/planning/vN/epics.md`
+   - `templates/planning/US-template.md` → `docs/planning/vN/us/US-XXXX-*.md`
+   - `templates/planning/task-template.md` → `docs/planning/vN/tasks/TASK-XXXX-*.md`
    - `templates/planning/task-assembly-template.md` → `TASK-XXXX-app-assembly.md` (dernière task)
    - `templates/testing/plan.md` → `docs/testing/plan.md`
-4. ✓ Numéroter les tasks dans l'ordre d'exécution logique
-5. ✓ Chaque TASK doit avoir : objectif, fichiers concernés, DoD, tests attendus
-6. ✓ Vérifier que chaque task est autonome et implémentable
-7. ✓ Créer le plan de test global (`docs/testing/plan.md`)
-8. ✓ **OBLIGATOIRE** : Générer une task finale d'assemblage :
+6. ✓ Numéroter les tasks en utilisant les compteurs (numérotation CONTINUE)
+7. ✓ Chaque TASK doit avoir : objectif, fichiers concernés, DoD, tests attendus
+8. ✓ Vérifier que chaque task est autonome et implémentable
+9. ✓ Créer le plan de test global (`docs/testing/plan.md`)
+10. ✓ **OBLIGATOIRE** : Générer une task finale d'assemblage :
    - Nom: `TASK-XXXX-app-assembly.md` (numéro = dernier + 1)
    - Template: `templates/planning/task-assembly-template.md`
    - Cette task assemble TOUS les composants/hooks dans App.tsx
