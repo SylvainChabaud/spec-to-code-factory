@@ -48,6 +48,7 @@ function detectRequirements() {
   return {
     file: latest.file,
     version: latest.version,
+    nextVersion: latest.version + 1,
     isEvolution: latest.version > 1,
     allVersions: versions
   };

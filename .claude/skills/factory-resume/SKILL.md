@@ -66,30 +66,34 @@ Skill(skill: "factory-plan")
 ```
 
 **Phase BUILD** :
-Si une task est en cours (`tasks.current !== null`) :
-1. Obtenir le répertoire planning actif :
+1. Lister toutes les tasks avec leur statut reel :
    ```bash
-   node tools/get-planning-version.js
-   # Retourne: { "tasksDir": "docs/planning/v1/tasks", ... }
+   node tools/factory-state.js tasks list
+   # Retourne: { planningDir, current, total, completed, pending, tasks: { TASK-0001: { status, ... }, ... } }
    ```
-2. Définir la task courante :
-   ```bash
-   node tools/set-current-task.js set <tasksDir>/[TASK-ID].md
-   ```
-3. Déléguer au developer :
-   ```
-   Task(
-     subagent_type: "developer",
-     prompt: "Continue la task <tasksDir>/[TASK-ID].md",
-     description: "Developer - Resume TASK"
-   )
-   ```
-4. Puis continuer avec les tasks suivantes via `/factory-build`
-
-Sinon :
-```
-Skill(skill: "factory-build")
-```
+2. Identifier les tasks pendantes (status != 'completed') :
+   - Trier par numero (TASK-0001, TASK-0002, ...)
+   - Si `current` est defini → reprendre cette task en premier
+   - Sinon → prendre la premiere task pendante
+3. Pour chaque task pendante, dans l'ordre :
+   a. Definir la task courante :
+      ```bash
+      node tools/set-current-task.js set <tasksDir>/[TASK-ID].md
+      ```
+   b. Deleguer au developer :
+      ```
+      Task(
+        subagent_type: "developer",
+        prompt: "Implemente la task <tasksDir>/[TASK-ID].md",
+        description: "Developer - Resume TASK"
+      )
+      ```
+   c. Mettre a jour le statut :
+      ```bash
+      node tools/factory-state.js task [TASK-ID] completed
+      node tools/set-current-task.js clear
+      ```
+4. Si toutes les tasks sont completes → continuer vers DEBRIEF
 
 **Phase DEBRIEF** :
 ```

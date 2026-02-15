@@ -13,8 +13,20 @@ import { getEvolutionVersion, getPlanningDir } from './lib/factory-state.js';
 
 const GATES = {
   0: {
-    name: '→ BREAK (requirements.md)',
-    files: ['input/requirements.md'],
+    name: '→ BREAK (requirements)',
+    // Files are dynamic: detect latest requirements-N.md
+    getDynamicConfig: () => {
+      try {
+        const result = execSync('node tools/detect-requirements.js', {
+          stdio: 'pipe', encoding: 'utf-8', timeout: 5000
+        });
+        const detected = JSON.parse(result);
+        return { files: [detected.file], detectedFile: detected.file };
+      } catch {
+        // Fallback to default if detect fails
+        return { files: ['input/requirements.md'], detectedFile: 'input/requirements.md' };
+      }
+    },
     requirementsValidation: true // Valide les 12 sections obligatoires
   },
   1: {
@@ -81,16 +93,40 @@ const GATES = {
   },
   5: {
     name: 'QA → Release',
-    files: [
-      'docs/qa/report.md',
-      'docs/release/checklist.md',
-      'CHANGELOG.md'
-    ],
-    sections: {
-      'docs/qa/report.md': ['## Résumé', '## Tests exécutés'],
-      'docs/release/checklist.md': ['## Pré-release'],
-      'CHANGELOG.md': ['## [']
+    // Files and sections are dynamic based on evolutionVersion
+    getDynamicConfig: () => {
+      const version = getEvolutionVersion();
+      if (version === 1) {
+        return {
+          files: [
+            'docs/qa/report.md',
+            'docs/release/checklist.md',
+            'CHANGELOG.md'
+          ],
+          sections: {
+            'docs/qa/report.md': ['## Résumé', '## Tests exécutés'],
+            'docs/release/checklist.md': ['## Pré-release'],
+            'CHANGELOG.md': ['## [']
+          }
+        };
+      }
+      // Brownfield (V2+): versioned filenames
+      // Sections use regex to tolerate accented/non-accented variants
+      return {
+        files: [
+          `docs/qa/report-v${version}.md`,
+          `docs/release/checklist-v${version}.md`,
+          'CHANGELOG.md'
+        ],
+        sections: {
+          [`docs/qa/report-v${version}.md`]: [/## R[ée]sum[ée]/, /## Tests ex[ée]cut[ée]s/],
+          [`docs/release/checklist-v${version}.md`]: [/## Pr[ée]-release/],
+          'CHANGELOG.md': ['## [']
+        }
+      };
     },
+    files: [],
+    sections: {},
     testsExecution: true, // Vérifie que les tests documentés ont été exécutés
     exportRelease: true // Export deliverable to release/ folder
   }
@@ -103,6 +139,7 @@ function fileExists(filePath) {
 function hasSection(filePath, section) {
   if (!fileExists(filePath)) return false;
   const content = fs.readFileSync(filePath, 'utf-8');
+  if (section instanceof RegExp) return section.test(content);
   return content.includes(section);
 }
 
@@ -373,18 +410,22 @@ function validateTestingPlanContent() {
  * Cross-references QA report with actual test files
  */
 function validateTestsExecution() {
-  const qaReportPath = 'docs/qa/report.md';
+  // Support versioned QA reports (brownfield)
+  const version = getEvolutionVersion();
+  const qaReportPath = version > 1
+    ? `docs/qa/report-v${version}.md`
+    : 'docs/qa/report.md';
 
   if (!fs.existsSync(qaReportPath)) {
-    return { success: false, error: 'docs/qa/report.md non trouvé' };
+    return { success: false, error: `${qaReportPath} non trouvé` };
   }
 
   console.log('  Validating tests execution coverage...');
 
   const qaContent = fs.readFileSync(qaReportPath, 'utf-8');
 
-  // Check that QA report contains test results section
-  if (!qaContent.includes('## Tests exécutés') && !qaContent.includes('## Test Results')) {
+  // Check that QA report contains test results section (tolerate accented/non-accented)
+  if (!/## Tests ex[ée]cut[ée]s/i.test(qaContent) && !qaContent.includes('## Test Results')) {
     return {
       success: false,
       error: 'Section "Tests exécutés" manquante dans le rapport QA'
@@ -431,6 +472,15 @@ async function runTestsWithRetry(maxRetries = 3, delayMs = 2000) {
     if (!packageJson.scripts?.test) {
       return { success: false, error: 'No test script defined in package.json', retries: 0 };
     }
+    // Detect npm placeholder test script
+    const testScript = packageJson.scripts.test;
+    if (testScript.includes('echo "Error: no test specified"') || testScript.includes("echo 'Error: no test specified'")) {
+      return {
+        success: false,
+        error: 'Test script is npm placeholder ("echo Error: no test specified"). Configure a real test runner (e.g. vitest) in package.json.',
+        retries: 0
+      };
+    }
   } catch (e) {
     return { success: false, error: 'Invalid package.json', retries: 0 };
   }
@@ -472,17 +522,18 @@ async function runTestsWithRetry(maxRetries = 3, delayMs = 2000) {
  * Run requirements.md validation (Gate 0)
  * Validates that all 12 required sections are present and filled
  */
-function runRequirementsValidation() {
+function runRequirementsValidation(requirementsFile) {
   const validatorPath = 'tools/validate-requirements.js';
 
   if (!fs.existsSync(validatorPath)) {
     return { success: false, error: 'Validateur requirements non trouvé (tools/validate-requirements.js)' };
   }
 
-  console.log('  Validating requirements.md (12 sections)...');
+  const targetFile = requirementsFile || 'input/requirements.md';
+  console.log(`  Validating ${targetFile} (12 sections)...`);
 
   try {
-    execSync('node tools/validate-requirements.js', {
+    execSync(`node tools/validate-requirements.js "${targetFile}"`, {
       stdio: 'pipe',
       encoding: 'utf-8',
       timeout: 30000
@@ -493,8 +544,8 @@ function runRequirementsValidation() {
     return {
       success: false,
       error: error.status === 1
-        ? 'Fichier input/requirements.md non trouvé'
-        : 'Sections manquantes ou vides dans requirements.md',
+        ? `Fichier ${targetFile} non trouvé`
+        : `Sections manquantes ou vides dans ${targetFile}`,
       stdout: error.stdout,
       stderr: error.stderr,
       exitCode: error.status
@@ -753,13 +804,16 @@ async function checkGate(gateNum) {
 
   const errors = [];
 
-  // Get dynamic config if available (for versioned gates like Gate 3)
+  // Get dynamic config if available (for versioned gates like Gate 0, 3, 5)
   let files = gate.files || [];
   let patterns = gate.patterns || [];
+  let sections = gate.sections || {};
+  let dynamicConfig = {};
   if (gate.getDynamicConfig) {
-    const dynamicConfig = gate.getDynamicConfig();
+    dynamicConfig = gate.getDynamicConfig();
     files = dynamicConfig.files || files;
     patterns = dynamicConfig.patterns || patterns;
+    sections = dynamicConfig.sections || sections;
   }
 
   // Check required files
@@ -781,10 +835,10 @@ async function checkGate(gateNum) {
     }
   }
 
-  // Check sections
-  if (gate.sections) {
-    for (const [file, sections] of Object.entries(gate.sections)) {
-      for (const section of sections) {
+  // Check sections (uses merged dynamic+static config)
+  if (Object.keys(sections).length > 0) {
+    for (const [file, sectionList] of Object.entries(sections)) {
+      for (const section of sectionList) {
         if (!hasSection(file, section)) {
           errors.push(`Section manquante dans ${file}: ${section}`);
         }
@@ -794,7 +848,8 @@ async function checkGate(gateNum) {
 
   // Requirements validation (Gate 0)
   if (gate.requirementsValidation) {
-    const reqResult = runRequirementsValidation();
+    const reqFile = dynamicConfig.detectedFile;
+    const reqResult = runRequirementsValidation(reqFile);
     if (!reqResult.success) {
       errors.push(`Requirements validation: ${reqResult.error}`);
       if (reqResult.stdout) {
@@ -803,7 +858,8 @@ async function checkGate(gateNum) {
         console.log('--------------------------------------\n');
       }
     } else {
-      console.log('  ✅ requirements.md valide (12/12 sections)\n');
+      const displayName = reqFile ? path.basename(reqFile) : 'requirements.md';
+      console.log(`  ✅ ${displayName} valide (12/12 sections)\n`);
     }
   }
 
@@ -944,6 +1000,29 @@ async function checkGate(gateNum) {
     }
   }
 
+  // App Assembly is last task check (Gate 4)
+  if (gate.appAssembly) {
+    const planningDir = getPlanningDir();
+    const tasksDir = `${planningDir}/tasks`;
+    if (fs.existsSync(tasksDir)) {
+      const taskFiles = fs.readdirSync(tasksDir)
+        .filter(f => f.match(/^TASK-\d{4}/))
+        .sort((a, b) => {
+          const numA = parseInt((a.match(/TASK-(\d+)/) || ['0', '0'])[1], 10);
+          const numB = parseInt((b.match(/TASK-(\d+)/) || ['0', '0'])[1], 10);
+          return numA - numB;
+        });
+      if (taskFiles.length > 0) {
+        const lastTask = taskFiles[taskFiles.length - 1];
+        if (!lastTask.includes('app-assembly')) {
+          errors.push(`La task d'assemblage doit etre la derniere numeriquement. Derniere task: ${lastTask}`);
+        } else {
+          console.log(`  ✅ Task app-assembly est la derniere task (${lastTask})\n`);
+        }
+      }
+    }
+  }
+
   // Boundary validation (Gate 4)
   if (gate.boundaryCheck) {
     const boundaryResult = runBoundaryValidation();
@@ -1010,7 +1089,9 @@ async function checkGate(gateNum) {
         stdio: 'ignore',
         timeout: 1000
       });
-    } catch (e) { /* silent fail */ }
+    } catch (e) {
+      if (process.env.FACTORY_DEBUG) console.warn('Instrumentation error:', e.message);
+    }
   }
 
   // Report results

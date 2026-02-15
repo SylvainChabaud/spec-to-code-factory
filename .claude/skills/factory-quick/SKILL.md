@@ -113,17 +113,25 @@ Utiliser `AskUserQuestion` pour obtenir le choix.
 1. Detecter la prochaine version :
    ```bash
    node tools/detect-requirements.js
-   # Si version actuelle = 2, creer requirements-3.md
+   # Retourne: { "version": N, "nextVersion": N+1, ... }
+   # Utiliser nextVersion pour le nouveau fichier
    ```
 
-2. Generer `input/requirements-N.md` pre-rempli :
+2. Generer `input/requirements-{nextVersion}.md` pre-rempli :
    - Sections impactees completees depuis la demande utilisateur
    - Sections non-impactees marquees "Inchange - voir V1"
    - Section "Contexte evolution" ajoutee
 
-3. Demander validation utilisateur :
+3. **Valider Gate 0** sur le fichier genere :
+   ```bash
+   node tools/validate-requirements.js input/requirements-{nextVersion}.md
    ```
-   "J'ai genere input/requirements-N.md
+   - Si echec → corriger les sections manquantes avant de continuer
+   - Si succes → continuer
+
+4. Demander validation utilisateur :
+   ```
+   "J'ai genere input/requirements-{nextVersion}.md (Gate 0 valide)
 
    Sections pre-remplies:
    - Fonctionnalites: [resume]
@@ -134,7 +142,7 @@ Utiliser `AskUserQuestion` pour obtenir le choix.
    2. Confirmer pour lancer /factory-evolve"
    ```
 
-4. Si confirme → Invoquer `/factory-evolve`
+5. Si confirme → Invoquer `/factory-evolve`
 
 #### Option B : Creation manuelle
 
@@ -182,12 +190,19 @@ Si Quick OK ou force :
 
 2. **Generer TASK-XXXX-quick-fix.md** dans `docs/planning/vN/tasks/` :
    - Template simplifie (pas besoin de US/EPIC pour quick)
+   - **US Parent** : `N/A (Quick Fix)` — JAMAIS de reference cross-version
+   - **EPIC** : `N/A (Quick Fix)`
    - Objectif clair
    - Fichiers concernes (max 3)
    - DoD minimale
    - Tests attendus
 
-3. **Deleguer a l'agent `developer`** :
+3. **Activer le tracking anti-derive** :
+   ```bash
+   node tools/set-current-task.js set docs/planning/vN/tasks/TASK-XXXX-quick-fix.md
+   ```
+
+4. **Deleguer a l'agent `developer`** :
    ```
    Task(
      subagent_type: "developer",
@@ -198,12 +213,17 @@ Si Quick OK ou force :
    )
    ```
 
-4. **Validation Gate 4 light** :
+5. **Desactiver le tracking anti-derive** :
+   ```bash
+   node tools/set-current-task.js clear
+   ```
+
+6. **Validation Gate 4 light** :
    - Tests passent
    - Boundaries respectees
    - Pas de secrets/PII
 
-5. **Mettre a jour CHANGELOG** :
+7. **Mettre a jour CHANGELOG** :
    - Prepend section "Fixed" ou "Changed"
    - Format: `- [Quick] Description (#TASK-XXXX)`
 

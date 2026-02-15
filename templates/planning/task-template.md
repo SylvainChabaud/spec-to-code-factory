@@ -73,7 +73,7 @@
 
 ## Fichiers concernés
 
-> Liste exhaustive des fichiers à créer/modifier.
+> Liste exhaustive des fichiers à créer/modifier/supprimer.
 > L'anti-dérive bloquera toute modification hors de cette liste.
 
 ### Fichiers à créer
@@ -82,6 +82,11 @@
 
 ### Fichiers à modifier
 - `src/xxx/existant.ts` (lignes ~XX-YY)
+
+### Fichiers à supprimer
+> Section optionnelle pour les refactorings réductifs (consolidation, suppression de feature).
+> Laisser vide ou retirer la section si aucune suppression n'est prévue.
+- _(aucun)_
 
 ### Alignment architectural
 

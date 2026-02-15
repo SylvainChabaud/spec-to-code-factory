@@ -1,8 +1,7 @@
 ---
 name: factory-intake
 description: "Phase BREAK - Normalise les requirements en brief/scope/acceptance"
-context: fork
-allowed-tools: Read, Glob, Grep, Task, Bash
+allowed-tools: Read, Glob, Grep, Task, Bash, AskUserQuestion
 ---
 
 # Factory Intake - Phase BREAK
@@ -44,30 +43,64 @@ Tu es l'orchestrateur de la phase BREAK.
    - Ou en éditant docs/factory/questions.md puis relancer /factory-intake"
    ```
 
-3. **Deleguer a l'agent `analyst`** via Task tool :
+3a. **Phase ANALYSE** - Deleguer a l'agent `analyst` (analyse seule) :
    ```bash
    # Instrumentation (si activee)
-   node tools/instrumentation/collector.js agent "{\"agent\":\"analyst\",\"source\":\"factory-intake\"}"
+   node tools/instrumentation/collector.js agent "{\"agent\":\"analyst\",\"source\":\"factory-intake\",\"mode\":\"analyse\"}"
    ```
    ```
    Task(
      subagent_type: "analyst",
-     prompt: "Execute detect-requirements.js pour trouver le fichier requirements.
-     Si isEvolution=false (V1): CREATE docs/brief.md, scope.md, acceptance.md
-     Si isEvolution=true (V2+): EDIT les docs existants pour les enrichir.
-     Pose les questions via AskUserQuestion.
-     Documente les Q/R dans docs/factory/questions.md (V1) ou questions-vN.md (V2+).",
-     description: "Analyst - Phase BREAK (auto-detect mode)"
+     prompt: "MODE DELEGATION - PHASE ANALYSE UNIQUEMENT.
+     Execute detect-requirements.js pour trouver le fichier requirements.
+     Analyse le requirements, identifie les ambiguites et questions.
+     Ecris le fichier questions : docs/factory/questions.md (V1) ou questions-vN.md (V2+).
+     IMPORTANT:
+     - NE PAS utiliser AskUserQuestion (le skill s'en charge)
+     - NE PAS generer brief.md, scope.md, acceptance.md
+     - Retourne dans ta reponse la LISTE des questions identifiees avec leur priorite (bloquante/optionnelle) et les hypotheses proposees.",
+     description: "Analyst - Phase ANALYSE (delegation)"
    )
    ```
 
-3b. **Fallback questions-vN.md** (si le fichier n'existe pas apres retour de l'analyst) :
-   Verifier si `docs/factory/questions-vN.md` existe (ou `docs/factory/questions.md` en V1).
-   Si absent, creer un fichier minimal :
-   ```markdown
-   # Questions V<N>
-   > Fichier auto-genere — l'agent analyst n'a pas eu le temps de documenter les Q/R.
-   > Les reponses ont ete integrees directement dans brief.md et scope.md.
+3b. **Poser les questions a l'utilisateur** (fait par le skill, PAS par le subagent) :
+   1. Lire le fichier questions genere par l'analyst (`docs/factory/questions.md` ou `docs/factory/questions-vN.md`)
+   2. Extraire les questions identifiees (depuis le fichier ou la reponse de l'analyst)
+   3. Poser les questions **bloquantes en premier** via `AskUserQuestion` :
+      - Regrouper par lot de 1 a 4 questions (limite du tool)
+      - Proposer les hypotheses de l'analyst comme options par defaut
+      - Ajouter toujours une option pour que l'utilisateur precise sa reponse
+   4. Pour les questions optionnelles, poser egalement via `AskUserQuestion`
+      mais accepter l'hypothese si l'utilisateur ne precise pas
+   5. Mettre a jour le fichier questions avec les reponses recues :
+      - Statut → `REPONDU` avec la reponse
+      - Ou statut → `HYPOTHESE` si l'utilisateur accepte l'hypothese par defaut
+
+   > **IMPORTANT** : Cette etape est executee par le skill lui-meme (pas un subagent)
+   > car les subagents ne posent pas les questions de maniere fiable.
+
+3c. **Phase GENERATION** - Deleguer a l'agent `analyst` (generation des documents) :
+   ```bash
+   # Instrumentation (si activee)
+   node tools/instrumentation/collector.js agent "{\"agent\":\"analyst\",\"source\":\"factory-intake\",\"mode\":\"generation\"}"
+   ```
+   ```
+   Task(
+     subagent_type: "analyst",
+     prompt: "MODE DELEGATION - PHASE GENERATION.
+     Execute detect-requirements.js pour trouver le fichier requirements.
+     Lis le fichier questions mis a jour avec les reponses utilisateur :
+     docs/factory/questions.md (V1) ou docs/factory/questions-vN.md (V2+).
+     Les reponses de l'utilisateur sont dans la colonne 'Reponse' du tableau.
+     Si isEvolution=false (V1): CREATE docs/brief.md, scope.md, acceptance.md
+     Si isEvolution=true (V2+): EDIT les docs existants pour les enrichir.
+     Integre les reponses de l'utilisateur dans les documents generes.
+     IMPORTANT:
+     - NE PAS utiliser AskUserQuestion (les reponses sont deja dans le fichier questions)
+     - Lire le fichier questions AVANT de generer les documents
+     - Les hypotheses acceptees doivent etre marquees comme telles dans brief.md",
+     description: "Analyst - Phase GENERATION (delegation)"
+   )
    ```
 
 4. **Vérifier les outputs** :

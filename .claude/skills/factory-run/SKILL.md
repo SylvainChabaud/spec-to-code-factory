@@ -14,7 +14,8 @@ Tu es l'orchestrateur master du pipeline complet requirements → release.
 > Attendre sa completion AVANT de passer à la suivante. JAMAIS en parallèle.
 
 Exécuter les 5 phases **séquentiellement** en invoquant chaque skill directement.
-Chaque skill a son propre `context: fork` et gère sa délégation d'agent.
+Les skills de phase gèrent leur propre délégation d'agent.
+Note : `factory-intake` tourne inline (pas de fork) pour permettre `AskUserQuestion`.
 
 ### Initialisation
 ```bash

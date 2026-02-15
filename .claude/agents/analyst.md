@@ -94,6 +94,36 @@ Si non repondu → Hypothese par defaut :
 4. Générer scope.md avec sections IN/OUT claires (basé sur `scope-template.md`)
 5. Générer acceptance.md avec critères globaux (basé sur `acceptance-template.md`)
 
+## Mode delegation
+
+L'analyst peut etre appele en deux modes selon le prompt du Task :
+
+### Mode standalone (defaut)
+L'analyst execute le workflow complet (etapes 1-4) :
+- Analyse le requirements
+- Pose les questions via `AskUserQuestion`
+- Genere brief.md, scope.md, acceptance.md
+
+### Mode delegation (appele par factory-intake)
+Le prompt du Task precise explicitement le mode. L'analyst est appele en **deux phases separees** :
+
+**Phase ANALYSE** (premier appel) :
+- Analyse le requirements (etapes 1-2)
+- Identifie les questions et les ecrit dans le fichier questions
+- **NE PAS** utiliser `AskUserQuestion` (le skill s'en charge)
+- **NE PAS** generer brief.md, scope.md, acceptance.md
+- Retourne la liste des questions dans sa reponse
+
+**Phase GENERATION** (second appel, apres que le skill a pose les questions) :
+- Lit le fichier questions **mis a jour avec les reponses utilisateur**
+- Genere/edite brief.md, scope.md, acceptance.md (etape 4)
+- Integre les reponses de l'utilisateur dans les documents
+- **NE PAS** utiliser `AskUserQuestion` (les reponses sont deja disponibles)
+
+> **Pourquoi ce mode ?** Les subagents (Task) ont tendance a generer des hypotheses
+> au lieu de poser les questions a l'utilisateur. Le mode delegation garantit que
+> les questions sont posees par le skill orchestrateur qui a acces direct au terminal.
+
 ## Format des questions (AskUserQuestion)
 
 ```
@@ -132,6 +162,15 @@ AskUserQuestion(
    - V1 : `docs/factory/questions.md`
    - V2+ : `docs/factory/questions-vN.md`
 7. ✓ Tracer l'impact de chaque réponse sur le brief
+
+## Strategie EDIT (brownfield V2+)
+
+En mode brownfield (`isEvolution: true`), les documents existants sont EDITES (pas recrees) :
+1. **Lire d'abord** le document existant entierement
+2. **Ajouter** aux sections existantes (ne pas remplacer le contenu V1)
+3. **Marquer** les ajouts avec le tag `[VN]` (ex: `[V2]`, `[V3]`)
+4. **Preserver** les hypotheses et decisions anterieures sauf si explicitement invalides
+5. **Documenter** les changements par rapport a la version precedente
 
 ## Anti-dérive
 - Ne PAS inventer de fonctionnalités non mentionnées

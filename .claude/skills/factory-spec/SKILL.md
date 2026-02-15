@@ -67,6 +67,19 @@ Tu es l'orchestrateur de la phase MODEL.
    **⏳ ATTENDRE que le Task soit terminé avant de continuer.**
    **✅ Vérifier** : `docs/specs/api.md` ET `docs/adr/ADR-0001-*.md` existent.
 
+   **Synchroniser le compteur ADR** (l'architect n'a pas acces a Bash) :
+   ```bash
+   # Compter les ADR sur disque et synchroniser le compteur
+   ADR_COUNT=$(ls docs/adr/ADR-*.md 2>/dev/null | wc -l)
+   CURRENT=$(node tools/factory-state.js counter adr get)
+   if [ "$CURRENT" != "$ADR_COUNT" ]; then
+     while [ "$(node tools/factory-state.js counter adr get)" -lt "$ADR_COUNT" ]; do
+       node tools/factory-state.js counter adr next > /dev/null
+     done
+     echo "ADR counter synchronized: $ADR_COUNT"
+   fi
+   ```
+
 4. **Déléguer à l'agent `rules-memory`** via Task tool :
    ```bash
    # Instrumentation (si activée)
@@ -81,21 +94,33 @@ Tu es l'orchestrateur de la phase MODEL.
    ```
    **⏳ ATTENDRE que le Task soit terminé avant de continuer.**
 
-5. **Vérifier les outputs** :
+5. **Brownfield uniquement : Pruner les rules obsolètes** :
+   Si mode brownfield (isEvolution=true), vérifier la cohérence des rules existantes :
+   ```bash
+   # Lister les rules existantes
+   ls .claude/rules/
+   ```
+   Pour chaque rule dans `.claude/rules/` (hors `factory-invariants.md` et `security-baseline.md`) :
+   - Comparer avec les specs mises à jour (`docs/specs/*`)
+   - Si une rule contredit les nouvelles specs → la mettre à jour ou la supprimer
+   - Si une rule référence des concepts supprimés → la supprimer
+   - Logger les modifications dans le résumé final
+
+6. **Vérifier les outputs** :
    - `docs/specs/system.md` existe
    - `docs/specs/domain.md` existe
    - `docs/specs/api.md` existe
    - `docs/adr/ADR-0001-*.md` existe
 
-6. **Exécuter Gate 2** : `node tools/gate-check.js 2`
+7. **Exécuter Gate 2** : `node tools/gate-check.js 2`
    - Si exit code ≠ 0 → STOP immédiat avec rapport des erreurs
 
-7. **Logger** via :
+8. **Logger** via :
    ```bash
    node tools/factory-log.js "MODEL" "completed" "Phase MODEL terminée"
    ```
 
-8. **Retourner** un résumé avec liste des specs générées
+9. **Retourner** un résumé avec liste des specs générées
 
 ## En cas d'échec
 

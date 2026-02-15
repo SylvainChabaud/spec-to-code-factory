@@ -60,7 +60,10 @@ Décomposer les specs en epics/US/tasks implémentables.
 6. ✓ Numéroter les tasks en utilisant les compteurs (numérotation CONTINUE)
 7. ✓ Chaque TASK doit avoir : objectif, fichiers concernés, DoD, tests attendus
 8. ✓ Vérifier que chaque task est autonome et implémentable
-9. ✓ Créer le plan de test global (`docs/testing/plan.md`)
+9. ✓ **PRIORITE HAUTE** : Créer le plan de test global (`docs/testing/plan.md`)
+   - Minimum 15 lignes substantielles (pas de stubs)
+   - Doit contenir : Stratégie, Tests unitaires, Tests intégration
+   - Vérifié par Gate 4 (`validateTestingPlanContent`)
 10. ✓ **OBLIGATOIRE** : Générer une task finale d'assemblage :
    - Nom: `TASK-XXXX-app-assembly.md` (numéro = dernier + 1)
    - Template: `templates/planning/task-assembly-template.md`

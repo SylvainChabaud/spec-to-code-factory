@@ -259,6 +259,54 @@ function cmdReset() {
   console.log('State reset to initial');
 }
 
+function cmdTasksList() {
+  const state = loadState();
+  const planningDir = `docs/planning/v${state.evolutionVersion || 1}`;
+  const tasksDir = `${planningDir}/tasks`;
+
+  // Collect actual TASK-*.md files from disk
+  const diskTasks = [];
+  if (fs.existsSync(tasksDir)) {
+    const files = fs.readdirSync(tasksDir).filter(f => f.match(/^TASK-\d{4}/));
+    for (const f of files) {
+      const match = f.match(/^(TASK-\d{4})/);
+      if (match) {
+        diskTasks.push(match[1]);
+      }
+    }
+  }
+
+  // Merge state.tasks.items with disk files
+  const result = {};
+  for (const taskId of diskTasks) {
+    const stateEntry = state.tasks?.items?.[taskId];
+    result[taskId] = {
+      status: stateEntry?.status || 'pending',
+      startedAt: stateEntry?.startedAt || null,
+      completedAt: stateEntry?.completedAt || null,
+      file: `${tasksDir}/${taskId}`
+    };
+  }
+
+  // Add tasks from state that are not on disk (orphans)
+  if (state.tasks?.items) {
+    for (const [taskId, entry] of Object.entries(state.tasks.items)) {
+      if (!result[taskId]) {
+        result[taskId] = { ...entry, orphan: true };
+      }
+    }
+  }
+
+  console.log(JSON.stringify({
+    planningDir,
+    current: state.tasks?.current || null,
+    total: Object.keys(result).length,
+    completed: Object.values(result).filter(t => t.status === 'completed').length,
+    pending: Object.values(result).filter(t => t.status === 'pending').length,
+    tasks: result
+  }, null, 2));
+}
+
 function cmdCounter(counterType, action) {
   const validTypes = ['epic', 'us', 'task', 'adr'];
   const validActions = ['get', 'next'];
@@ -275,9 +323,16 @@ function cmdCounter(counterType, action) {
 
   const state = loadState();
 
-  // Ensure counters object exists (for backward compatibility)
+  // Ensure counters object exists with all types (for backward compatibility)
   if (!state.counters) {
     state.counters = { epic: 0, us: 0, task: 0, adr: 0 };
+  } else {
+    // Ensure each counter type exists (handles partial counters from older versions)
+    for (const type of validTypes) {
+      if (state.counters[type] === undefined) {
+        state.counters[type] = 0;
+      }
+    }
   }
 
   if (action === 'get') {
@@ -348,6 +403,15 @@ switch (command) {
     cmdCounter(arg1, arg2);
     break;
 
+  case 'tasks':
+    if (arg1 === 'list') {
+      cmdTasksList();
+    } else {
+      console.error('Usage: node tools/factory-state.js tasks list');
+      process.exit(1);
+    }
+    break;
+
   default:
     console.log('Usage: node tools/factory-state.js <command> [args]');
     console.log('');
@@ -358,6 +422,7 @@ switch (command) {
     console.log('  task <id> <status>     Update task (pending|running|completed|failed)');
     console.log('  gate <num> <status>    Update gate (0-5)');
     console.log('  counter <type> <action> Get/increment counter (epic|us|task|adr)');
+    console.log('  tasks list             List all tasks with statuses (state + disk)');
     console.log('  init                   Initialize state file');
     console.log('  reset                  Reset to initial state');
     process.exit(command ? 1 : 0);

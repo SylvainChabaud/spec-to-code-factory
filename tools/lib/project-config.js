@@ -6,6 +6,7 @@
  */
 
 import fs from 'fs';
+import { loadState } from './factory-state.js';
 
 const CONFIG_PATH = 'docs/factory/project-config.json';
 
@@ -59,7 +60,12 @@ export function loadProjectConfig() {
   }
 
   if (!fs.existsSync(CONFIG_PATH)) {
-    console.warn(`⚠️  ${CONFIG_PATH} non trouve, utilisation des valeurs par defaut`);
+    // Only warn if Gate 2 is already passed (config should exist after MODEL phase)
+    const state = loadState(true);
+    const gate2Passed = state.gates?.['2']?.status === 'passed' || state.gates?.['2']?.status === 'PASS';
+    if (gate2Passed) {
+      console.warn(`⚠️  ${CONFIG_PATH} non trouve, utilisation des valeurs par defaut`);
+    }
     _cachedProjectConfig = DEFAULT_CONFIG;
     return _cachedProjectConfig;
   }

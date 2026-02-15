@@ -19,7 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { getPlanningDir, getTasksDir, getUSDir } from './lib/factory-state.js';
+import { getPlanningDir, getTasksDir, getUSDir, getEvolutionVersion } from './lib/factory-state.js';
 
 const VERBOSE = process.argv.includes('--verbose');
 const JSON_OUTPUT = process.argv.includes('--json');
@@ -338,6 +338,112 @@ check('Phase ACT (Build)', 'Layer UI existe', () => {
 });
 
 // ============================================================
+// 4b. ADR SUPERSESSION COHERENCE
+// ============================================================
+
+check('Phase MODEL', 'ADR supersession coherente', () => {
+  if (!fs.existsSync('docs/adr')) return { skip: true, reason: 'docs/adr/ absent' };
+  const adrs = fs.readdirSync('docs/adr').filter(f => f.startsWith('ADR-') && f.endsWith('.md'));
+  if (adrs.length === 0) return { skip: true, reason: 'Aucun ADR' };
+
+  const errors = [];
+  for (const adr of adrs) {
+    const content = fs.readFileSync(path.join('docs/adr', adr), 'utf-8');
+    // Check if this ADR is marked as SUPERSEDED
+    if (/statut\s*[:|\s]\s*superseded/i.test(content) || /status\s*[:|\s]\s*superseded/i.test(content)) {
+      // It should reference the replacement ADR
+      const hasReplacement = /remplac[ée].*par\s+ADR-\d{4}/i.test(content)
+        || /superseded\s+by\s+ADR-\d{4}/i.test(content)
+        || /ADR-\d{4}.*remplac/i.test(content)
+        || /→\s*ADR-\d{4}/i.test(content);
+      if (!hasReplacement) {
+        errors.push(`${adr}: marque SUPERSEDED mais ne reference pas son remplacement`);
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    return { pass: false, reason: errors.join('; ') };
+  }
+  return { pass: true, detail: `${adrs.length} ADR(s) verifies` };
+});
+
+// ============================================================
+// 4c. COUNTER CONSISTENCY
+// ============================================================
+
+check('Consistency', 'Compteurs synchronises avec artefacts', () => {
+  if (!fs.existsSync('docs/factory/state.json')) return { skip: true, reason: 'state.json absent' };
+
+  let state;
+  try {
+    state = JSON.parse(fs.readFileSync('docs/factory/state.json', 'utf-8'));
+  } catch (e) {
+    return { skip: true, reason: 'state.json invalide' };
+  }
+
+  if (!state.counters) return { skip: true, reason: 'Pas de compteurs dans state.json' };
+
+  const warnings = [];
+
+  // Count actual TASK files across all versions
+  let totalTasks = 0;
+  if (fs.existsSync('docs/planning')) {
+    const vDirs = fs.readdirSync('docs/planning').filter(d => /^v\d+$/.test(d));
+    for (const vDir of vDirs) {
+      const tasksDir = path.join('docs/planning', vDir, 'tasks');
+      if (fs.existsSync(tasksDir)) {
+        totalTasks += fs.readdirSync(tasksDir).filter(f => /^TASK-\d{4}/.test(f)).length;
+      }
+    }
+  }
+  // Counter < files = bug (fichiers crees sans incrementer le compteur)
+  // Counter > files = acceptable (retries, tentatives avortees du scrum-master)
+  // Counter == files = parfait
+  if (state.counters.task < totalTasks) {
+    warnings.push(`task counter=${state.counters.task} < fichiers TASK-*=${totalTasks} (compteur en retard)`);
+  }
+
+  // Count actual US files
+  let totalUS = 0;
+  if (fs.existsSync('docs/planning')) {
+    const vDirs = fs.readdirSync('docs/planning').filter(d => /^v\d+$/.test(d));
+    for (const vDir of vDirs) {
+      const usDir = path.join('docs/planning', vDir, 'us');
+      if (fs.existsSync(usDir)) {
+        totalUS += fs.readdirSync(usDir).filter(f => /^US-\d{4}/.test(f)).length;
+      }
+    }
+  }
+  if (state.counters.us < totalUS) {
+    warnings.push(`us counter=${state.counters.us} < fichiers US-*=${totalUS} (compteur en retard)`);
+  }
+
+  // Count actual ADR files
+  let totalADR = 0;
+  if (fs.existsSync('docs/adr')) {
+    totalADR = fs.readdirSync('docs/adr').filter(f => /^ADR-\d{4}/.test(f)).length;
+  }
+  if (state.counters.adr < totalADR) {
+    warnings.push(`adr counter=${state.counters.adr} < fichiers ADR-*=${totalADR} (compteur en retard)`);
+  }
+
+  if (warnings.length > 0) {
+    return { pass: false, reason: `Desynchronisation: ${warnings.join('; ')}` };
+  }
+
+  const details = [`task=${totalTasks}`, `us=${totalUS}`, `adr=${totalADR}`];
+  // Signal counter ahead (info, not error)
+  const ahead = [];
+  if (state.counters.task > totalTasks) ahead.push(`task +${state.counters.task - totalTasks}`);
+  if (state.counters.us > totalUS) ahead.push(`us +${state.counters.us - totalUS}`);
+  if (state.counters.adr > totalADR) ahead.push(`adr +${state.counters.adr - totalADR}`);
+  if (ahead.length > 0) details.push(`compteurs en avance: ${ahead.join(', ')}`);
+
+  return { pass: true, detail: details.join(', ') };
+});
+
+// ============================================================
 // 5. BOUNDARY CHECK — Validation architecturale
 // ============================================================
 
@@ -435,10 +541,15 @@ check('Instrumentation', 'validate-boundaries.js tracke dans coverage', () => {
 
 check('Phase DEBRIEF', 'QA report existe', () => {
   if (!fs.existsSync('docs/qa')) return { pass: false, reason: 'Dossier docs/qa/ manquant' };
+  const version = getEvolutionVersion();
+  // Check for versioned report in brownfield, fallback to V1 name
+  const expectedFile = version > 1 ? `report-v${version}.md` : 'report.md';
   const qaFiles = fs.readdirSync('docs/qa').filter(f => f.endsWith('.md'));
-  return qaFiles.length > 0
+  if (qaFiles.length === 0) return { pass: false, reason: 'Aucun rapport QA' };
+  const hasExpected = qaFiles.includes(expectedFile);
+  return hasExpected
     ? { pass: true, detail: qaFiles.join(', ') }
-    : { pass: false, reason: 'Aucun rapport QA' };
+    : { pass: true, detail: `${qaFiles.join(', ')} (attendu: ${expectedFile})` };
 });
 
 check('Phase DEBRIEF', 'CHANGELOG.md existe', () => {

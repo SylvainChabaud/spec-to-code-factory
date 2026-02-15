@@ -49,6 +49,11 @@ Tu ne dois JAMAIS :
 - Proposer des "améliorations" non demandées
 - Refactorer du code existant (sauf task dédiée)
 
+## Pré-check test runner
+Avant d'écrire les tests, vérifier que le test runner est configuré :
+- Si `package.json` contient le placeholder npm (`echo "Error: no test specified"`) → configurer le test runner (vitest recommandé) AVANT d'écrire les tests
+- Vérifier que `pnpm test` ou `npm test` fonctionne
+
 ## Validation
 Avant de terminer :
 - [ ] DoD complète

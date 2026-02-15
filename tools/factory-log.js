@@ -91,7 +91,9 @@ ${message ? `- **Message**: ${message}` : ''}
           stdio: 'ignore', timeout: 1000
         });
       }
-    } catch (e) { /* silent fail */ }
+    } catch (e) {
+      if (process.env.FACTORY_DEBUG) console.warn('Instrumentation error:', e.message);
+    }
   }
 }
 

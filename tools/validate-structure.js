@@ -121,6 +121,23 @@ function validate() {
     }
   }
 
+  // Check minimal content in key documents
+  console.log('📄 Vérification du contenu minimal...');
+  const minContentChecks = [
+    { file: 'docs/brief.md', minLines: 20, label: 'brief.md' },
+    { file: 'docs/scope.md', minLines: 10, label: 'scope.md' },
+    { file: 'docs/acceptance.md', minLines: 10, label: 'acceptance.md' }
+  ];
+  for (const { file, minLines, label } of minContentChecks) {
+    if (fs.existsSync(file)) {
+      const content = fs.readFileSync(file, 'utf-8');
+      const nonEmptyLines = content.split('\n').filter(l => l.trim().length > 0).length;
+      if (nonEmptyLines < minLines) {
+        warnings.push(`${label}: contenu insuffisant (${nonEmptyLines} lignes non-vides, minimum ${minLines})`);
+      }
+    }
+  }
+
   // Check naming conventions
   console.log('📝 Vérification des conventions de nommage...');
   for (const conv of NAMING_CONVENTIONS) {
