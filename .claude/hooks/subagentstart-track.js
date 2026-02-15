@@ -30,7 +30,14 @@ function readStdin() {
 }
 
 const stdinData = await readStdin();
-const input = JSON.parse(stdinData || '{}');
+let input = {};
+try {
+  input = JSON.parse(stdinData || '{}');
+} catch (e) {
+  // Malformed stdin — allow subagent to proceed
+  console.log(JSON.stringify({ continue: true }));
+  process.exit(0);
+}
 
 // Instrumentation: record agent delegation (opt-in)
 if (isEnabled()) {

@@ -21,8 +21,26 @@ const DEFAULT_STATE = {
   counters: {
     epic: 0,
     us: 0,
-    task: 0
-  }
+    task: 0,
+    adr: 0
+  },
+  pipeline: { status: 'pending', startedAt: null, completedAt: null, currentPhase: null },
+  phases: {
+    break: { status: 'pending', startedAt: null, completedAt: null },
+    model: { status: 'pending', startedAt: null, completedAt: null },
+    plan: { status: 'pending', startedAt: null, completedAt: null },
+    build: { status: 'pending', startedAt: null, completedAt: null },
+    debrief: { status: 'pending', startedAt: null, completedAt: null }
+  },
+  gates: {
+    0: { status: 'pending', checkedAt: null, errors: [] },
+    1: { status: 'pending', checkedAt: null, errors: [] },
+    2: { status: 'pending', checkedAt: null, errors: [] },
+    3: { status: 'pending', checkedAt: null, errors: [] },
+    4: { status: 'pending', checkedAt: null, errors: [] },
+    5: { status: 'pending', checkedAt: null, errors: [] }
+  },
+  tasks: { total: 0, completed: 0, current: null, items: {} }
 };
 
 /**

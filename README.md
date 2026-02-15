@@ -5,7 +5,7 @@ Pipeline Claude Code qui transforme un `requirements.md` en projet livrable.
 ## Quick Start
 
 1. Placez votre fichier de requirements dans `input/requirements.md`
-2. Lancez le pipeline : `/factory-run`
+2. Lancez le pipeline : `/factory`
 3. Récupérez votre projet livrable dans `release/`
 
 ## Workflow
@@ -36,8 +36,7 @@ release/  ← Projet livrable (sans infrastructure factory)
 
 | Command | Description |
 |---------|-------------|
-| `/factory-run` | Pipeline complet (greenfield V1) |
-| `/factory-evolve` | Evolution incrementale (brownfield V2+) |
+| `/factory` | Pipeline complet (auto-detect greenfield V1 / brownfield V2+) |
 | `/factory-quick` | Quick fix/tweak mineur (BMAD Quick Flow) |
 | `/factory-intake` | Phase BREAK |
 | `/factory-spec` | Phase MODEL |
@@ -55,12 +54,12 @@ release/  ← Projet livrable (sans infrastructure factory)
 
 | Situation | Commande | Description |
 |-----------|----------|-------------|
-| Nouveau projet | `/factory-run` | Pipeline complet greenfield |
-| Feature majeure (V2+) | `/factory-evolve` | Pipeline incremental brownfield |
+| Nouveau projet | `/factory` | Pipeline complet greenfield (auto-detect) |
+| Feature majeure (V2+) | `/factory` | Pipeline incremental brownfield (auto-detect) |
 | Bug fix / tweak mineur | `/factory-quick` | Quick Flow avec detection conformite |
 
 **Quick Flow** : Pour les modifications mineures qui ne changent pas le modele metier.
-Si `/factory-quick` detecte que la modification impacte les specs, il propose automatiquement de generer un `requirements-N.md` et basculer vers `/factory-evolve`.
+Si `/factory-quick` detecte que la modification impacte les specs, il propose automatiquement de generer un `requirements-N.md` et basculer vers `/factory`.
 
 ## Structure
 
@@ -99,7 +98,7 @@ Si `/factory-quick` detecte que la modification impacte les specs, il propose au
 
 ## Evolution de projet (V2+)
 
-Le pipeline supporte l'evolution incrementale via `/factory-evolve`.
+Le pipeline supporte l'evolution incrementale via `/factory`.
 
 ### Requirements multiples
 
@@ -114,11 +113,11 @@ input/
 
 ```
 docs/planning/
-  v1/           # Cree par /factory-run
+  v1/           # Cree par /factory
     epics.md
     us/
     tasks/
-  v2/           # Cree par /factory-evolve
+  v2/           # Cree par /factory
     epics.md
     us/
     tasks/

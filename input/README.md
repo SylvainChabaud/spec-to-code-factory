@@ -15,20 +15,20 @@ Ce dossier contient les fichiers requirements pour le pipeline factory.
 
 | Situation | Commande | Fichier requis |
 |-----------|----------|----------------|
-| Nouveau projet | `/factory-run` | `requirements.md` |
-| Nouvelle feature majeure | `/factory-evolve` | `requirements-N.md` |
+| Nouveau projet | `/factory` | `requirements.md` |
+| Nouvelle feature majeure | `/factory` | `requirements-N.md` |
 | Bug fix / tweak mineur | `/factory-quick` | Aucun (ou auto-genere) |
 
 ## Workflows detailles
 
 ### Nouveau projet (V1)
 1. Creer `requirements.md` avec les 12 sections obligatoires
-2. Lancer `/factory-run`
+2. Lancer `/factory`
 
 ### Evolution majeure (V2+)
 1. Garder `requirements.md` intact (historique V1)
 2. Creer `requirements-N.md` avec les nouvelles features
-3. Lancer `/factory-evolve`
+3. Lancer `/factory`
 
 ### Quick fix (sans nouveau requirements)
 1. Lancer `/factory-quick`
@@ -45,7 +45,7 @@ Si `/factory-quick` detecte que la modification necessite une evolution :
 Option A (Recommande):
   → Le skill genere requirements-N.md pre-rempli
   → Vous validez/completez
-  → /factory-evolve s'execute
+  → /factory s'execute
 
 Option B:
   → Vous creez requirements-N.md manuellement

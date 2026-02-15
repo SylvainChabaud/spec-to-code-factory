@@ -32,8 +32,8 @@ const LAYER_RULES = {
   application: {
     name: 'Application',
     patterns: [/[/\\]application[/\\]/],
-    allowedImports: ['domain', 'application'],
-    description: 'Use Cases, DTOs, Ports (interfaces)'
+    allowedImports: ['domain', 'application', 'infrastructure'],
+    description: 'Use Cases, DTOs, Ports (interfaces). Exception ADR-0009: usePersistence importe infrastructure.'
   },
   infrastructure: {
     name: 'Infrastructure',

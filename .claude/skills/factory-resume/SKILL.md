@@ -32,7 +32,7 @@ Analyser le JSON retourné pour déterminer :
 
 **Si `pipeline.status === 'idle'`** :
 - Pas de pipeline en cours
-- Informer l'utilisateur et suggérer `/factory-run`
+- Informer l'utilisateur et suggérer `/factory`
 
 **Si `pipeline.status === 'completed'`** :
 - Pipeline déjà terminé
@@ -119,7 +119,7 @@ Retourner un résumé :
 
 **Si state.json n'existe pas** :
 - Proposer d'initialiser avec `node tools/factory-state.js init`
-- Ou démarrer un nouveau pipeline avec `/factory-run`
+- Ou démarrer un nouveau pipeline avec `/factory`
 
 **Si incohérence détectée** :
 - Vérifier les gates avec `node tools/gate-check.js [N]`

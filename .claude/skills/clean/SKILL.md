@@ -1,3 +1,9 @@
+---
+name: clean
+description: "Reset complet du projet - remet en état starter"
+allowed-tools: Bash, AskUserQuestion
+---
+
 # /clean - Reset complet du projet
 
 Remet le projet en état "starter" propre.
@@ -84,7 +90,7 @@ EOF
    - tools/ (outils workflow)
    - .claude/ (config Claude Code)
 
-   Prêt pour : /factory-run
+   Prêt pour : /factory
    ```
 
 ## Mode --force

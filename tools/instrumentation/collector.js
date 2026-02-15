@@ -309,7 +309,7 @@ switch (command) {
     break;
 
   case 'skill':
-    // node collector.js skill '{"skill":"factory-run","parentSkill":null}'
+    // node collector.js skill '{"skill":"factory","parentSkill":null}'
     try {
       const data = JSON.parse(arg1 || '{}');
       recordSkillInvocation(data.skill, data.parentSkill);

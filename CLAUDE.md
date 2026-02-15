@@ -45,8 +45,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `/factory-plan` : Phase ACT (planning)
 - `/factory-build` : Phase ACT (build)
 - `/factory-qa` : Phase DEBRIEF
-- `/factory-run` : Pipeline complet (greenfield V1)
-- `/factory-evolve` : Pipeline evolution (brownfield V2+)
+- `/factory` : Pipeline complet (auto-detect greenfield V1 / brownfield V2+)
 - `/factory-quick` : Quick fix/tweak sans pipeline complet (BMAD Quick Flow)
 - `/factory-resume` : Reprend le pipeline apres interruption
 - `/gate-check [0-5]` : Verifie un gate
@@ -241,17 +240,17 @@ Le pipeline supporte l'evolution incrementale d'un projet existant.
 ### Modes
 | Mode | Commande | Usage |
 |------|----------|-------|
-| **Greenfield** | `/factory-run` | Nouveau projet (V1) |
-| **Brownfield** | `/factory-evolve` | Evolution (V2, V3...) |
+| **Greenfield** | `/factory` | Nouveau projet (V1) — auto-detect |
+| **Brownfield** | `/factory` | Evolution (V2, V3...) — auto-detect |
 
 ### Structure versionnee
 ```
 docs/planning/
-  v1/           # Cree par /factory-run
+  v1/           # Cree par /factory
     epics.md
     us/
     tasks/
-  v2/           # Cree par /factory-evolve
+  v2/           # Cree par /factory
     epics.md
     us/
     tasks/
@@ -291,8 +290,8 @@ Pour les modifications mineures sans repasser par le pipeline complet.
 
 ### Quand utiliser Quick vs Evolve
 
-| Critere | `/factory-quick` | `/factory-evolve` |
-|---------|------------------|-------------------|
+| Critere | `/factory-quick` | `/factory` |
+|---------|------------------|-----------|
 | Fichiers impactes | <= 3 | > 3 |
 | Nouveau concept metier | Non | Oui |
 | Nouvel endpoint API | Non | Oui |
@@ -304,7 +303,7 @@ Pour les modifications mineures sans repasser par le pipeline complet.
 Si `/factory-quick` detecte que la modification necessite une mise a jour des specs :
 
 1. **Option A** : Generer `requirements-N.md` automatiquement (recommande)
-2. **Option B** : Creer manuellement puis `/factory-evolve`
+2. **Option B** : Creer manuellement puis `/factory`
 3. **Option C** : Forcer Quick (risque de derive)
 
 ### Workflow Quick
@@ -319,7 +318,7 @@ Demande utilisateur
        │
        └── Non-conforme → Proposer options A/B/C
                               │
-                              └── Option A → Generer requirements-N.md → /factory-evolve
+                              └── Option A → Generer requirements-N.md → /factory
 ```
 
 ## Limites

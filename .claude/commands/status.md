@@ -89,7 +89,7 @@ Logique de décision :
 
 | État | Prochaine action |
 |------|------------------|
-| Aucun artefact | `/factory-run` ou `/factory-intake` |
+| Aucun artefact | `/factory` ou `/factory-intake` |
 | Gate 1 FAIL | Corriger docs/brief.md, scope.md, acceptance.md |
 | Gate 1 PASS, Gate 2 PENDING | `/factory-spec` |
 | Gate 2 FAIL | Corriger specs ou ADRs |

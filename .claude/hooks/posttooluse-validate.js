@@ -37,7 +37,14 @@ function readStdin() {
 }
 
 const stdinData = await readStdin();
-const input = JSON.parse(stdinData || '{}');
+let input = {};
+try {
+  input = JSON.parse(stdinData || '{}');
+} catch (e) {
+  // Malformed stdin — allow tool to proceed
+  console.log(JSON.stringify({ continue: true }));
+  process.exit(0);
+}
 
 const REQUIRED_SECTIONS = {
   'docs/brief.md': ['## Résumé exécutif', '## Hypothèses explicites'],
@@ -155,8 +162,6 @@ function recordFileWrite(filePath, tool) {
 if (input.tool_name === 'Write' || input.tool_name === 'Edit') {
   const filePath = input.tool_input?.file_path || input.tool_input?.path;
   if (filePath) {
-    // Record file write for instrumentation
-    recordFileWrite(filePath, input.tool_name);
     // 1. Validate required sections (docs files)
     const sectionResult = validateFile(filePath);
     if (!sectionResult.valid) {
@@ -177,6 +182,8 @@ if (input.tool_name === 'Write' || input.tool_name === 'Edit') {
     // 2. Validate file scope (anti-drift for src/tests files)
     const scopeResult = validateScope(filePath);
     if (!scopeResult.valid) {
+      // Record file write even for rejected files (audit trail)
+      recordFileWrite(filePath, input.tool_name);
       // Structure JSON conforme aux specs Claude Code hooks
       console.log(JSON.stringify({
         continue: false,
@@ -196,6 +203,9 @@ if (input.tool_name === 'Write' || input.tool_name === 'Edit') {
       }));
       process.exit(2);
     }
+
+    // Record file write after validation passes
+    recordFileWrite(filePath, input.tool_name);
   }
 }
 

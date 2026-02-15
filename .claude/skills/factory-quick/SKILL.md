@@ -9,7 +9,7 @@ allowed-tools: Read, Glob, Grep, Bash, Task, Skill, AskUserQuestion
 Tu es l'orchestrateur du Quick Flow pour les modifications mineures.
 
 > **Principe BMAD** : Quick Flow pour bug fixes, tweaks UI, refactors internes.
-> Si la modification impacte les specs → basculer vers `/factory-evolve`.
+> Si la modification impacte les specs → basculer vers `/factory`.
 
 ## Prerequis
 
@@ -91,12 +91,12 @@ Presenter le rapport de non-conformite :
 [A] Generer requirements-N.md automatiquement (Recommande)
     → Je cree le fichier pre-rempli base sur votre demande
     → Vous validez/completez les 12 sections
-    → Puis /factory-evolve s'execute
+    → Puis /factory s'execute
 
 [B] Creer requirements-N.md manuellement
     → Template: input/requirements.md
     → Completez les sections impactees
-    → Puis lancez /factory-evolve
+    → Puis lancez /factory
 
 [C] Forcer Quick (NON RECOMMANDE)
     → Risque de derive specs/code
@@ -139,10 +139,10 @@ Utiliser `AskUserQuestion` pour obtenir le choix.
 
    Veuillez:
    1. Relire et completer si necessaire
-   2. Confirmer pour lancer /factory-evolve"
+   2. Confirmer pour lancer /factory"
    ```
 
-5. Si confirme → Invoquer `/factory-evolve`
+5. Si confirme → Invoquer `/factory`
 
 #### Option B : Creation manuelle
 
@@ -158,7 +158,7 @@ Utiliser `AskUserQuestion` pour obtenir le choix.
    - [autres sections selon impacts]
 
 3. Lancer:
-   /factory-evolve
+   /factory
 
 Le pipeline detectera automatiquement requirements-N.md"
 ```
@@ -244,7 +244,7 @@ CHANGELOG: Mis a jour
 
 Note: Cette modification n'a pas mis a jour les specs.
 Si d'autres modifications similaires s'accumulent,
-considerez un /factory-evolve pour synchroniser."
+considerez un /factory pour synchroniser."
 ```
 
 ## Template requirements pre-rempli (Option A)
@@ -255,7 +255,7 @@ Quand on genere automatiquement :
 # Requirements - Evolution V{{N}}
 
 > Genere automatiquement par /factory-quick
-> A valider et completer avant /factory-evolve
+> A valider et completer avant /factory
 
 ## Contexte evolution
 

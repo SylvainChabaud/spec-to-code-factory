@@ -62,7 +62,7 @@ export function loadProjectConfig() {
   if (!fs.existsSync(CONFIG_PATH)) {
     // Only warn if Gate 2 is already passed (config should exist after MODEL phase)
     const state = loadState(true);
-    const gate2Passed = state.gates?.['2']?.status === 'passed' || state.gates?.['2']?.status === 'PASS';
+    const gate2Passed = state.gates?.['2']?.status === 'PASS';
     if (gate2Passed) {
       console.warn(`⚠️  ${CONFIG_PATH} non trouve, utilisation des valeurs par defaut`);
     }
@@ -126,6 +126,13 @@ export function findHookPaths() {
     : [config.paths.hooks];
 
   return paths.filter(p => fs.existsSync(p));
+}
+
+/**
+ * Invalide le cache pour forcer un rechargement
+ */
+export function invalidateProjectConfigCache() {
+  _cachedProjectConfig = null;
 }
 
 /**

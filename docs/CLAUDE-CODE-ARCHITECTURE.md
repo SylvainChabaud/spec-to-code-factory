@@ -383,7 +383,7 @@ Racine projet/
 ## 7. Flux d'exécution
 
 ```
-Utilisateur tape /factory-run
+Utilisateur tape /factory
         │
         ▼
     Skill chargé (context: fork)

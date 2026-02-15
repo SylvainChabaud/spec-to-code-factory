@@ -171,6 +171,17 @@ function cmdPhase(name, status) {
 
   const state = loadState();
 
+  // Ensure phases and pipeline structures exist (backward compat)
+  if (!state.phases) {
+    state.phases = {};
+  }
+  if (!state.phases[name]) {
+    state.phases[name] = { status: 'pending', gate: null, startedAt: null, completedAt: null };
+  }
+  if (!state.pipeline) {
+    state.pipeline = { status: 'idle', startedAt: null, completedAt: null, currentPhase: null };
+  }
+
   state.phases[name].status = status;
 
   if (status === 'running') {
@@ -197,6 +208,14 @@ function cmdTask(taskId, status) {
   }
 
   const state = loadState();
+
+  // Ensure tasks structure exists (backward compat)
+  if (!state.tasks) {
+    state.tasks = { total: 0, completed: 0, current: null, items: {} };
+  }
+  if (!state.tasks.items) {
+    state.tasks.items = {};
+  }
 
   // Initialize task if not exists
   if (!state.tasks.items[taskId]) {
@@ -231,11 +250,25 @@ function cmdTask(taskId, status) {
 }
 
 function cmdGate(gateNum, status, errors = []) {
+  const validStatuses = ['pending', 'PASS', 'FAIL', 'skipped'];
+
+  if (!validStatuses.includes(status)) {
+    console.error(`Invalid gate status: ${status}. Valid: ${validStatuses.join(', ')}`);
+    process.exit(1);
+  }
+
   const state = loadState();
 
-  if (state.gates[gateNum] === undefined) {
-    console.error(`Invalid gate: ${gateNum}. Valid: 0-5`);
-    process.exit(1);
+  // Ensure gates structure exists (backward compat with old state files)
+  if (!state.gates) {
+    state.gates = {};
+  }
+  if (!state.gates[gateNum]) {
+    if (gateNum < 0 || gateNum > 5) {
+      console.error(`Invalid gate: ${gateNum}. Valid: 0-5`);
+      process.exit(1);
+    }
+    state.gates[gateNum] = { status: 'pending', checkedAt: null, errors: [] };
   }
 
   state.gates[gateNum].status = status;

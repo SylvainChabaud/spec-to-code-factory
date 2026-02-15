@@ -28,7 +28,13 @@ function readStdin() {
 }
 
 const stdinData = await readStdin();
-const input = JSON.parse(stdinData || '{}');
+let input = {};
+try {
+  input = JSON.parse(stdinData || '{}');
+} catch (e) {
+  // Malformed stdin — continue gracefully
+  process.exit(0);
+}
 
 // Instrumentation: record stop event (opt-in)
 if (isEnabled()) {
@@ -45,7 +51,7 @@ if (isEnabled()) {
 }
 
 console.log(`
-💡 Rappel: Avant de continuer, vérifiez le gate approprié:
+Rappel: Avant de continuer, verifiez le gate approprie:
    node tools/gate-check.js [1-5]
 `);
 

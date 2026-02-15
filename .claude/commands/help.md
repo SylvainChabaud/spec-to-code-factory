@@ -10,7 +10,7 @@ Affiche l'aide du pipeline Spec-to-Code Factory.
 - `/factory-plan` : Phase ACT (specs → planning)
 - `/factory-build` : Phase ACT (tasks → code)
 - `/factory-qa` : Phase DEBRIEF (code → release)
-- `/factory-run` : Pipeline complet
+- `/factory` : Pipeline complet (auto-detect greenfield/brownfield)
 - `/gate-check [1-5]` : Vérifie un gate
 
 ### Commands

@@ -12,22 +12,6 @@
 import fs from 'fs';
 
 const INSTRUMENTATION_FILE = 'docs/factory/instrumentation.json';
-const STATE_FILE = 'docs/factory/state.json';
-
-/**
- * Load evolution mode from state.json
- * @returns {'greenfield'|'brownfield'} Current evolution mode
- */
-function getEvolutionMode() {
-  try {
-    if (fs.existsSync(STATE_FILE)) {
-      const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
-      return state.evolutionMode || 'greenfield';
-    }
-  } catch (e) { /* fallback */ }
-  return 'greenfield';
-}
-
 /**
  * Known items in the factory pipeline
  * Used to calculate coverage percentages
@@ -58,7 +42,7 @@ const KNOWN_ITEMS = {
     'export-release.js'
   ],
 
-  // Templates (19 total)
+  // Templates (18 total, README.template.md excluded — used by export-release.js subprocess)
   templates: [
     // Phase BREAK (Analyst)
     'templates/break/brief-template.md',
@@ -85,16 +69,16 @@ const KNOWN_ITEMS = {
     // Note: README.template.md is used by export-release.js (subprocess, not tracked by hooks)
   ],
 
-  // Skills expected in a pipeline run
-  // Adapted by getExpectedSkills() based on evolution mode
-  // Excluded: factory-resume (only after interruption), gate-check (manual)
+  // Skills expected in a standard pipeline run
+  // Excluded: factory-resume (only after interruption), factory-quick (minor fixes only),
+  //           clean (reset only), gate-check (manual invocation)
   skills: [
     'factory-intake',
     'factory-spec',
     'factory-plan',
     'factory-build',
     'factory-qa',
-    'factory-run'
+    'factory'
   ],
 
   // Agent types
@@ -312,12 +296,8 @@ function calculateCoverage(data = null) {
   }
 
   const events = data.events || [];
-  const mode = getEvolutionMode();
 
-  // Adapt expected items based on evolution mode
-  const expectedSkills = mode === 'brownfield'
-    ? KNOWN_ITEMS.skills.map(s => s === 'factory-run' ? 'factory-evolve' : s)
-    : [...KNOWN_ITEMS.skills];
+  const expectedSkills = [...KNOWN_ITEMS.skills];
 
   // Gates: always expect all gates (Gate 0 is checked even in brownfield)
   const expectedGates = [...KNOWN_ITEMS.gates];
@@ -431,8 +411,7 @@ function printCoverageSummary(coverage) {
     criticalUnused.push(`Gates not checked: ${coverage.categories.Gates.items.unchecked.join(', ')}`);
   }
 
-  const mode = getEvolutionMode();
-  const mainSkill = mode === 'brownfield' ? 'factory-evolve' : 'factory-run';
+  const mainSkill = 'factory';
   if (coverage.categories.Skills.items.unused?.includes(mainSkill)) {
     criticalUnused.push(`Main skill ${mainSkill} not invoked`);
   }
