@@ -36,19 +36,20 @@
 > Cette section contient TOUT le contexte nécessaire pour implémenter la task.
 > Aucune connaissance de la task précédente n'est requise.
 
-### Specs référencées
+### Règles métier applicables
 
-| Document | Section | Résumé pertinent |
-|----------|---------|------------------|
-| `docs/specs/system.md` | #section-xxx | [Résumé de ce qui s'applique] |
-| `docs/specs/domain.md` | #entité-xxx | [Résumé des règles métier] |
-| `docs/specs/api.md` | #endpoint-xxx | [Signature de l'API concernée] |
+> Règles extraites des specs par le Scrum Master. Auto-suffisant — ne pas chercher d'autre source.
+
+| Règle | Contrainte |
+|-------|-----------|
+| [BR-XX] | [Description de la règle métier à respecter] |
+| [Architectural] | [Contrainte technique applicable] |
 
 ### ADR applicables
 
 | ADR | Décision | Impact sur cette task |
 |-----|----------|----------------------|
-| `ADR-0001` | [Stack technique] | [Comment cela impacte l'implémentation] |
+| `ADR-XXXX` | [Décision architecturale pertinente] | [Comment cela impacte l'implémentation] |
 
 ### Code existant pertinent
 
@@ -90,7 +91,7 @@
 
 ### Alignment architectural
 
-> Référence : docs/adr/ADR-0001-*.md + docs/specs/domain.md#architecture-logicielle
+> Chaque fichier doit être assigné à la bonne couche architecturale (voir ADR stack).
 
 | Fichier | Layer | Concept | Justification |
 |---------|-------|---------|---------------|
@@ -122,7 +123,7 @@
 - [ ] Code implémenté selon le plan
 - [ ] Tests unitaires écrits et passants
 - [ ] Pas de régression sur les tests existants
-- [ ] Code conforme aux specs référencées
+- [ ] Code conforme aux règles métier applicables
 - [ ] Pas de fichiers hors scope modifiés
 - [ ] Règles de dépendance inter-couches respectées
 - [ ] TypeScript compile sans erreur (si applicable)

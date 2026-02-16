@@ -43,6 +43,8 @@ const DEFAULT_CONFIG = {
     },
     codeQuality: {
       testCoverage: 80,
+      branchCoverage: 75,
+      functionCoverage: 85,
       typescriptStrict: true,
       noMagicNumbers: true
     }

@@ -70,6 +70,8 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/validate-app-assembly.js` : Validation assemblage App.tsx (Gate 4) - **supporte Clean Arch**
 - `tools/validate-boundaries.js` : Validation des regles d'import inter-couches (Gate 4)
 - `tools/export-release.js` : Export du projet livrable (Gate 5)
+- `tools/list-active-adrs.js` : Listing et filtrage des ADR (actifs, superseded, par version)
+- `tools/extract-version-delta.js` : Extraction du delta d'une version depuis les specs (inline + marqueurs de bloc)
 - `tools/verify-pipeline.js` : Verification post-pipeline complete (toutes phases)
 
 ## Permissions simplifiées
@@ -148,7 +150,9 @@ Le pipeline inclut une validation stricte du code généré contre les specs :
 
 | Critère | Seuil | Bloquant |
 |---------|-------|----------|
-| Couverture de tests | ≥ 80% | Oui |
+| Couverture de tests (lignes) | ≥ 80% | Oui |
+| Couverture de tests (branches) | ≥ 75% | Oui |
+| Couverture de tests (fonctions) | ≥ 85% | Oui |
 | Types TypeScript | Strict (erreurs bloquantes) | Oui |
 | Conformité API specs | 100% | Oui |
 | Conformité Domain specs | 100% | Oui |
@@ -191,7 +195,7 @@ Les tools (`gate-check.js`, `validate-*.js`) lisent cette config au lieu d'avoir
 Chaque task est **100% auto-suffisante** selon le principe BMAD "hyper-detailed story files".
 
 Une task contient :
-- **Contexte complet** : Specs référencées avec résumés
+- **Contexte complet** : Règles métier applicables (extraites des specs, pas de chemin vers les fichiers)
 - **Code existant** : Extraits pertinents (fichier:lignes)
 - **Fichiers concernés** : Liste exhaustive (anti-dérive)
 - **Tests attendus** : Pour validation automatique
@@ -273,6 +277,30 @@ input/
 | ADR | CREATE | CREATE (nouveau) + EDIT status ancien |
 | QA reports | CREATE | CREATE (report-vN.md) |
 | CHANGELOG | CREATE | EDIT (prepend) |
+
+### Marqueurs de version dans les specs (V2+)
+
+Les agents qui EDITENT les specs/BREAK encadrent chaque ajout/modification avec des marqueurs HTML :
+
+```markdown
+<!-- V14:START -->
+Contenu ajoute ou modifie pour V14
+<!-- V14:END -->
+```
+
+Ces marqueurs sont **invisibles** dans le rendu markdown mais permettent :
+- **Extraction** : `node tools/extract-version-delta.js --version 14` extrait le delta
+- **Agents lecteurs** (scrum-master, factory-quick, rules-memory) : ne chargent que le delta pertinent
+- **Agents editeurs** (analyst, pm, architect) : continuent d'editer le fichier complet
+
+Les annotations inline `(VN)` restent recommandees **en complement** des marqueurs de bloc.
+
+```bash
+node tools/extract-version-delta.js                    # Delta version courante
+node tools/extract-version-delta.js --version 13       # Delta V13 specifique
+node tools/extract-version-delta.js --stats             # Stats toutes versions
+node tools/extract-version-delta.js -v 13 --json        # Output JSON
+```
 
 ### Compteurs continus
 Les compteurs US/TASK sont **continus** entre versions :

@@ -23,7 +23,7 @@ Générer les rules Claude Code et enrichir CLAUDE.md.
 
 ## Inputs
 - `docs/specs/*`
-- `docs/adr/*`
+- ADR actifs (liste fournie par l'orchestrateur via `node tools/list-active-adrs.js --summary`)
 
 ## Outputs
 - `.claude/rules/*.md` (règles dynamiques selon projet)
@@ -33,7 +33,15 @@ Générer les rules Claude Code et enrichir CLAUDE.md.
 
 > ⚠️ Ces actions sont OBLIGATOIRES avant toute production
 
-1. ✓ Charger TOUTES les specs (`docs/specs/*`) et ADR (`docs/adr/*`)
+1. ✓ **Charger les specs** :
+   - **V1 (greenfield)** : Charger TOUTES les specs (`docs/specs/*`)
+   - **V2+ (brownfield)** : Charger le **delta de la version courante** :
+     ```bash
+     node tools/extract-version-delta.js -f system -f domain -f api
+     ```
+     Cela extrait uniquement les ajouts/modifications pertinents pour les nouvelles rules.
+     Si le delta est insuffisant pour comprendre le contexte, charger le fichier complet en complement.
+   - ADR **ACTIFS uniquement** (liste fournie par l'orchestrateur - NE PAS charger les ADR au statut SUPERSEDED)
 2. ✓ Identifier les règles nécessaires par domaine (backend, frontend, testing, security)
 3. ✓ Utiliser le template pour structurer les rules :
    - `templates/rule.md` → `.claude/rules/*.md`
@@ -107,6 +115,21 @@ Ajouter :
 - Conventions de nommage
 - Commands disponibles
 - Limites connues
+
+## Strategie EDIT (brownfield V2+)
+
+En mode brownfield, les rules existantes sont mises a jour :
+1. **Charger** les ADR ACTIFS uniquement (pas les SUPERSEDED)
+2. **Mettre a jour** les rules existantes si les specs changent
+3. **Supprimer** les rules qui referent des concepts supprimes
+
+### Suppression de concepts obsoletes
+
+Quand une version SUPPRIME un concept et sa rule associee :
+- **SUPPRIMER physiquement** la rule obsolete (le fichier .md)
+- **Mettre a jour** les rules impactees en SUPPRIMANT les references obsoletes
+- **NE PAS** utiliser `~~strikethrough~~` ni `SUPPRIME VN` dans les rules
+- L'historique git conserve la tracabilite
 
 ## Anti-dérive
 - Ne PAS créer de règles non justifiées par specs/ADR

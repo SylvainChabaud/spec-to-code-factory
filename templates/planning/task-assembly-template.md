@@ -84,9 +84,9 @@ Intégrer TOUS les composants et hooks générés dans `src/App.tsx` pour produi
 | `Note` | Entité note avec id, title, content, tags, etc. |
 | `Category` | Entité catégorie avec id, name, color |
 
-### Layout attendu (depuis specs système)
+### Layout attendu
 
-> Structure UI basée sur `docs/specs/system.md`
+> Structure UI extraite des specs par le Scrum Master.
 
 {{DESCRIPTION_LAYOUT_DEPUIS_SPECS}}
 
@@ -104,13 +104,15 @@ Intégrer TOUS les composants et hooks générés dans `src/App.tsx` pour produi
 └────────────────┴────────────────────────┘
 ```
 
-### Specs référencées
+### Règles métier applicables
 
-| Document | Section | Résumé pertinent |
-|----------|---------|------------------|
-| `docs/specs/system.md` | #vue-d-ensemble | Architecture UI globale |
-| `docs/specs/api.md` | #composants | Interface des composants React |
-| `docs/adr/ADR-0001-*.md` | Décision stack | Framework UI utilisé |
+> Règles extraites des specs par le Scrum Master. Auto-suffisant — ne pas chercher d'autre source.
+
+| Règle | Contrainte |
+|-------|------------|
+| [Architecture UI] | [Description du layout et des composants attendus] |
+| [Interfaces composants] | [Props et types des composants à assembler] |
+| [ADR stack] | [Framework UI et contraintes architecturales] |
 
 ### Code existant pertinent
 

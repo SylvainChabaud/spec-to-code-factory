@@ -88,6 +88,15 @@ export function getEvolutionVersion() {
 }
 
 /**
+ * Retourne le mode d'evolution courant
+ * @returns {string} Mode ('greenfield' ou 'brownfield')
+ */
+export function getEvolutionMode() {
+  const state = loadState();
+  return state.evolutionMode || 'greenfield';
+}
+
+/**
  * Retourne le chemin du dossier planning versionne
  * @returns {string} Chemin (ex: docs/planning/v1)
  */

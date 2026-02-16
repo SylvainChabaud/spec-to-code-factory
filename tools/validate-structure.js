@@ -29,8 +29,7 @@ const REQUIRED_DIRS_GATE1 = [
 
 // Additional directories (required for Gate 4 - after code generation)
 const REQUIRED_DIRS_GATE4 = [
-  'src',
-  'tests'
+  'src'
 ];
 
 // Get versioned planning directories based on state
@@ -98,18 +97,31 @@ function validate() {
   const errors = [];
   const warnings = [];
 
-  // Determine if we should check for code directories (src/, tests/)
+  // Determine if we should check for code directories (src/)
   // These only exist after Gate 4 (code generation)
   const srcExists = fs.existsSync('src');
-  const testsExists = fs.existsSync('tests');
-  const includeCodeDirs = srcExists || testsExists;
 
   // Check directories
   console.log('📁 Vérification des dossiers...');
-  const requiredDirs = getRequiredDirs(includeCodeDirs);
+  const requiredDirs = getRequiredDirs(srcExists);
   for (const dir of requiredDirs) {
     if (!fs.existsSync(dir)) {
       errors.push(`Dossier manquant: ${dir}`);
+    }
+  }
+
+  // Check co-located tests: each source layer in src/ must have __tests__/
+  if (srcExists) {
+    console.log('🧪 Vérification des tests co-localisés...');
+    const srcEntries = fs.readdirSync('src', { withFileTypes: true });
+    const sourceLayers = srcEntries
+      .filter(e => e.isDirectory() && !e.name.startsWith('__'))
+      .map(e => e.name);
+    for (const layer of sourceLayers) {
+      const testsDir = path.join('src', layer, '__tests__');
+      if (!fs.existsSync(testsDir)) {
+        errors.push(`Tests manquants pour la couche ${layer}: ${testsDir}`);
+      }
     }
   }
 

@@ -9,7 +9,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { isEnabled } from './instrumentation/config.js';
 import { findAppPath } from './lib/project-config.js';
-import { getEvolutionVersion, getPlanningDir } from './lib/factory-state.js';
+import { getEvolutionVersion, getEvolutionMode, getPlanningDir } from './lib/factory-state.js';
 
 const GATES = {
   0: {
@@ -45,22 +45,47 @@ const GATES = {
   },
   2: {
     name: 'MODEL → ACT',
-    files: [
-      'docs/specs/system.md',
-      'docs/specs/domain.md',
-      'docs/specs/api.md'
-      // project-config.json validé par projectConfigValidation (structure JSON + champs requis)
-    ],
-    patterns: [
-      { glob: 'docs/adr/ADR-0001-*.md', min: 1 }
-    ],
+    getDynamicConfig: () => {
+      const version = getEvolutionVersion();
+      const mode = getEvolutionMode();
+      const baseConfig = {
+        files: [
+          'docs/specs/system.md',
+          'docs/specs/domain.md',
+          'docs/specs/api.md'
+        ],
+        patterns: [
+          { glob: 'docs/adr/ADR-0001-*.md', min: 1 }
+        ]
+      };
+
+      // Brownfield (V2+): verify ADRs for current version
+      if (mode === 'brownfield' && version > 1) {
+        try {
+          const result = execSync('node tools/list-active-adrs.js --current', {
+            stdio: 'pipe', encoding: 'utf-8', timeout: 5000
+          });
+          const data = JSON.parse(result);
+          baseConfig.adrVersionCheck = {
+            version,
+            count: data.activeCount,
+            adrs: data.active || []
+          };
+        } catch {
+          // Fallback: no version check if tool fails
+        }
+      }
+
+      return baseConfig;
+    },
     sections: {
       'docs/specs/system.md': ['## Vue d\'ensemble', '## Contraintes non-fonctionnelles'],
       'docs/specs/domain.md': ['## Concepts clés', '## Entités'],
       'docs/specs/api.md': ['## Endpoints', '## Authentification']
     },
     secretsScan: true, // Scanne les secrets avant de continuer
-    projectConfigValidation: true // Vérifie la validité du project-config.json
+    projectConfigValidation: true, // Vérifie la validité du project-config.json
+    adrVersionValidation: true // Vérifie les ADR de la version courante (brownfield)
   },
   3: {
     name: 'Planning → Build',
@@ -904,6 +929,20 @@ async function checkGate(gateNum) {
       errors.push(`Project config validation: ${configResult.error}`);
     } else {
       console.log('  ✅ project-config.json valide\n');
+    }
+  }
+
+  // ADR version validation (Gate 2 brownfield)
+  if (gate.adrVersionValidation && dynamicConfig.adrVersionCheck) {
+    const adrCheck = dynamicConfig.adrVersionCheck;
+    if (adrCheck.count === 0) {
+      errors.push(
+        `Aucun ADR actif pour V${adrCheck.version}. ` +
+        `Au moins 1 ADR requis pour la version courante.`
+      );
+    } else {
+      const names = adrCheck.adrs.map(a => a.id || a).join(', ');
+      console.log(`  ✅ ${adrCheck.count} ADR actif(s) pour V${adrCheck.version}: ${names}\n`);
     }
   }
 

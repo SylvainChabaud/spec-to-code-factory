@@ -34,11 +34,14 @@ Exemple: "Refactorer le hook useAuth pour plus de clarte"
 Lire les specs existantes et verifier si la demande est conforme :
 
 ```bash
-# Charger les specs
-cat docs/specs/system.md
-cat docs/specs/domain.md
-cat docs/specs/api.md
-cat docs/brief.md
+# Charger le delta de la version courante (léger, ~5-10% du volume total)
+node tools/extract-version-delta.js -f system -f domain -f api -f brief
+
+# Si le delta est insuffisant pour juger la conformité, charger les specs complètes :
+# cat docs/specs/system.md
+# cat docs/specs/domain.md
+# cat docs/specs/api.md
+# cat docs/brief.md
 ```
 
 **Criteres de NON-conformite (→ basculer vers Evolve) :**

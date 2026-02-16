@@ -3,6 +3,12 @@
 > Template pour docs/specs/api.md
 > Remplacer {{PLACEHOLDER}} par les valeurs du projet
 
+<!-- VERSIONING (V2+) : Encadrer tout ajout/modification avec
+     <!-- VN:START --> ... <!-- VN:END -->
+     où N = version courante. Garder aussi les annotations inline (VN).
+     Extraction : node tools/extract-version-delta.js --version N
+-->
+
 ## Vue d'ensemble
 
 **Base URL** : `{{https://api.example.com/v1}}`

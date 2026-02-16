@@ -35,6 +35,10 @@ Tu es l'orchestrateur de la phase MODEL.
    ```bash
    # Instrumentation (si activée)
    node tools/instrumentation/collector.js agent "{\"agent\":\"pm\",\"source\":\"factory-spec\"}"
+
+   # Extraire le delta de la version courante (brownfield uniquement)
+   node tools/extract-version-delta.js -f brief -f scope
+   # Retourne les ajouts/modifications de la version courante — passer dans le prompt
    ```
    ```
    Task(
@@ -42,7 +46,8 @@ Tu es l'orchestrateur de la phase MODEL.
      prompt: "Execute detect-requirements.js pour determiner le mode.
      Si isEvolution=false (V1): CREATE docs/specs/system.md et domain.md
      Si isEvolution=true (V2+): EDIT les specs existantes pour les mettre a jour.
-     Source: docs/brief.md et docs/scope.md",
+     DELTA VERSION COURANTE : <output de extract-version-delta.js ci-dessus>
+     Charge les sources completes (docs/brief.md, docs/scope.md) uniquement si le delta est insuffisant.",
      description: "PM - Specs fonctionnelles (auto-detect mode)"
    )
    ```
@@ -53,6 +58,10 @@ Tu es l'orchestrateur de la phase MODEL.
    ```bash
    # Instrumentation (si activée)
    node tools/instrumentation/collector.js agent "{\"agent\":\"architect\",\"source\":\"factory-spec\"}"
+
+   # Extraire le delta de la version courante (brownfield uniquement)
+   node tools/extract-version-delta.js -f system -f domain
+   # Retourne les ajouts/modifications de la version courante — passer dans le prompt
    ```
    ```
    Task(
@@ -60,7 +69,8 @@ Tu es l'orchestrateur de la phase MODEL.
      prompt: "Execute detect-requirements.js pour determiner le mode.
      Si isEvolution=false (V1): CREATE docs/specs/api.md et ADR-0001-stack.md
      Si isEvolution=true (V2+): EDIT api.md + CREATE nouveaux ADR + marquer anciens SUPERSEDED.
-     Source: docs/specs/system.md et docs/specs/domain.md",
+     DELTA VERSION COURANTE : <output de extract-version-delta.js ci-dessus>
+     Charge les sources completes (docs/specs/system.md, docs/specs/domain.md) uniquement si le delta est insuffisant.",
      description: "Architect - Specs techniques (auto-detect mode)"
    )
    ```
@@ -84,11 +94,24 @@ Tu es l'orchestrateur de la phase MODEL.
    ```bash
    # Instrumentation (si activée)
    node tools/instrumentation/collector.js agent "{\"agent\":\"rules-memory\",\"source\":\"factory-spec\"}"
+
+   # Pré-filtrage : lister uniquement les ADR actifs (exclut SUPERSEDED)
+   node tools/list-active-adrs.js --summary
+   # Retourne les paths des ADR actifs, à passer dans le prompt ci-dessous
+
+   # Extraire le delta de la version courante (brownfield uniquement)
+   node tools/extract-version-delta.js -f system -f domain -f api
+   # Retourne les ajouts/modifications de la version courante — passer dans le prompt
    ```
    ```
    Task(
      subagent_type: "rules-memory",
-     prompt: "Génère les rules dans .claude/rules/ et enrichis CLAUDE.md depuis docs/specs/* et docs/adr/*",
+     prompt: "Génère les rules dans .claude/rules/ et enrichis CLAUDE.md.
+     ADR ACTIFS : <liste des paths retournés par list-active-adrs.js --summary>
+     DELTA VERSION COURANTE : <output de extract-version-delta.js ci-dessus>
+     En brownfield, concentre-toi sur les rules à AJOUTER/MODIFIER pour la version courante.
+     Charge les specs complètes (docs/specs/*) uniquement si le delta est insuffisant.
+     IMPORTANT : NE PAS charger les ADR au statut SUPERSEDED.",
      description: "Rules-Memory - Rules et mémoire"
    )
    ```

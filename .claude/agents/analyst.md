@@ -168,9 +168,17 @@ AskUserQuestion(
 En mode brownfield (`isEvolution: true`), les documents existants sont EDITES (pas recrees) :
 1. **Lire d'abord** le document existant entierement
 2. **Ajouter** aux sections existantes (ne pas remplacer le contenu V1)
-3. **Marquer** les ajouts avec le tag `[VN]` (ex: `[V2]`, `[V3]`)
-4. **Preserver** les hypotheses et decisions anterieures sauf si explicitement invalides
-5. **Documenter** les changements par rapport a la version precedente
+3. **Marquer** les ajouts avec le tag `(VN)` inline (ex: `(V14)`)
+4. **Encadrer** chaque bloc ajoute/modifie avec `<!-- VN:START -->` / `<!-- VN:END -->`
+5. **Preserver** les hypotheses et decisions anterieures sauf si explicitement invalides
+6. **Documenter** les changements par rapport a la version precedente
+
+### Suppression de concepts obsoletes
+
+Quand une version SUPPRIME un critere ou une fonctionnalite :
+- **SUPPRIMER physiquement** la ligne/section du fichier
+- **NE PAS** utiliser `~~strikethrough~~` ni `SUPPRIME VN`
+- L'historique git conserve la traçabilite
 
 ## Anti-dérive
 - Ne PAS inventer de fonctionnalités non mentionnées

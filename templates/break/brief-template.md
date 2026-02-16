@@ -4,6 +4,11 @@
 > Généré par l'agent Analyst depuis `input/requirements.md`
 > Questions de clarification : [docs/factory/questions.md](../factory/questions.md)
 
+<!-- VERSIONING (V2+) : Encadrer tout ajout/modification avec
+     <!-- VN:START --> ... <!-- VN:END -->
+     Extraction : node tools/extract-version-delta.js --version N
+-->
+
 ---
 
 ## Metadata

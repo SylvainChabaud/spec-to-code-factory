@@ -3,6 +3,12 @@
 > Template pour docs/specs/system.md
 > Remplacer {{PLACEHOLDER}} par les valeurs du projet
 
+<!-- VERSIONING (V2+) : Encadrer tout ajout/modification avec
+     <!-- VN:START --> ... <!-- VN:END -->
+     où N = version courante. Garder aussi les annotations inline (VN).
+     Extraction : node tools/extract-version-delta.js --version N
+-->
+
 ## Vue d'ensemble
 
 {{Description du système, son objectif principal et sa proposition de valeur}}

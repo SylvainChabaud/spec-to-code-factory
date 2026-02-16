@@ -4,6 +4,11 @@
 > Généré par l'agent Analyst
 > Définit les critères globaux de validation du projet
 
+<!-- VERSIONING (V2+) : Encadrer tout ajout/modification avec
+     <!-- VN:START --> ... <!-- VN:END -->
+     Extraction : node tools/extract-version-delta.js --version N
+-->
+
 ---
 
 ## Metadata
@@ -11,7 +16,7 @@
 | Champ | Valeur |
 |-------|--------|
 | **Projet** | {{NOM_PROJET}} |
-| **Version** | V1 |
+| **Version** | {{VN}} |
 | **Date** | {{YYYY-MM-DD}} |
 | **Agent** | Analyst |
 

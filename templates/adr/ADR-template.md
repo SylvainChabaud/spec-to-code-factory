@@ -11,6 +11,10 @@
 
 {{YYYY-MM-DD}}
 
+## Version
+
+{{V1 | V2 | V3 | ...}}
+
 ## Contexte
 
 {{Description du contexte technique ou métier qui nécessite une décision.

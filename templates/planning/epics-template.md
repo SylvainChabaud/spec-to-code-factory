@@ -48,8 +48,8 @@ Ex: Réduction du temps de X, Augmentation de Y, Conformité à Z]
 
 | US ID | Titre | Priorité | Statut |
 |-------|-------|----------|--------|
-| [US-0001](us/US-0001-titre.md) | [Titre] | P1 | draft |
-| [US-0002](us/US-0002-titre.md) | [Titre] | P1 | draft |
+| [US-XXXX](us/US-XXXX-titre.md) | [Titre] | P1 | draft |
+| [US-XXXY](us/US-XXXY-titre.md) | [Titre] | P1 | draft |
 
 ### Dépendances
 

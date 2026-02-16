@@ -3,6 +3,12 @@
 > Template pour docs/specs/domain.md
 > Remplacer {{PLACEHOLDER}} par les valeurs du projet
 
+<!-- VERSIONING (V2+) : Encadrer tout ajout/modification avec
+     <!-- VN:START --> ... <!-- VN:END -->
+     où N = version courante. Garder aussi les annotations inline (VN).
+     Extraction : node tools/extract-version-delta.js --version N
+-->
+
 ## Concepts clés
 
 ### Glossaire métier
@@ -83,7 +89,7 @@
 
 ### Style architectural
 
-{{Clean Architecture / Hexagonal / Layered — défini par ADR-0001}}
+{{Clean Architecture / Hexagonal / Layered — défini par l'ADR architecture}}
 
 ### Layers et responsabilités
 

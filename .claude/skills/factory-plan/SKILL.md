@@ -31,11 +31,22 @@ Tu es l'orchestrateur de la phase planning.
    ```bash
    # Instrumentation (si activée)
    node tools/instrumentation/collector.js agent "{\"agent\":\"scrum-master\",\"source\":\"factory-plan\"}"
+
+   # Pré-filtrage : lister uniquement les ADR actifs (exclut SUPERSEDED)
+   node tools/list-active-adrs.js --summary
+   # Retourne les paths des ADR actifs, à passer dans le prompt ci-dessous
+
+   # Extraire le delta de la version courante (brownfield uniquement)
+   node tools/extract-version-delta.js -f system -f domain -f api
+   # Retourne les ajouts/modifications de la version courante — passer dans le prompt
    ```
    ```
    Task(
      subagent_type: "scrum-master",
-     prompt: "Décompose docs/specs/* et docs/adr/* en epics/US/tasks.
+     prompt: "Décompose les specs en epics/US/tasks.
+     ADR ACTIFS : <liste des paths retournés par list-active-adrs.js --summary>
+     DELTA VERSION COURANTE : <output de extract-version-delta.js ci-dessus>
+     IMPORTANT : NE PAS charger les ADR au statut SUPERSEDED.
 
      IMPORTANT - Tasks auto-suffisantes (principe BMAD):
      Chaque TASK doit être 100% indépendante avec:
@@ -56,7 +67,7 @@ Tu es l'orchestrateur de la phase planning.
    - Au moins 1 fichier `docs/planning/v<N>/tasks/TASK-*.md`
    - Chaque TASK contient TOUTES ces sections (auto-suffisance BMAD):
      * Objectif technique
-     * Contexte complet (specs referencees avec resumes)
+     * Contexte complet (règles métier applicables, extraites des specs)
      * Fichiers concernes (liste exhaustive)
      * Definition of Done
      * Tests attendus

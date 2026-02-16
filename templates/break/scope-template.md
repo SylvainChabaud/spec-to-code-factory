@@ -2,7 +2,12 @@
 
 > Template pour `docs/scope.md`
 > Généré par l'agent Analyst
-> Définit le périmètre précis de la V1
+> Définit le périmètre précis de la {{VN}}
+
+<!-- VERSIONING (V2+) : Encadrer tout ajout/modification avec
+     <!-- VN:START --> ... <!-- VN:END -->
+     Extraction : node tools/extract-version-delta.js --version N
+-->
 
 ---
 
@@ -11,13 +16,13 @@
 | Champ | Valeur |
 |-------|--------|
 | **Projet** | {{NOM_PROJET}} |
-| **Version** | V1 |
+| **Version** | {{VN}} |
 | **Date** | {{YYYY-MM-DD}} |
 | **Agent** | Analyst |
 
 ---
 
-## IN (inclus dans V1)
+## IN (inclus dans {{VN}})
 
 > Liste exhaustive des fonctionnalités incluses dans cette version.
 
@@ -107,7 +112,7 @@
 
 | Priorité | Description | Fonctionnalités |
 |----------|-------------|-----------------|
-| **P1 - Must Have** | Indispensable pour la V1 | F1, F2 |
+| **P1 - Must Have** | Indispensable pour la {{VN}} | F1, F2 |
 | **P2 - Should Have** | Important mais pas bloquant | F3 |
 | **P3 - Nice to Have** | Si le temps le permet | - |
 

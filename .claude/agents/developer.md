@@ -23,10 +23,12 @@ Implémenter UNE task à la fois, strictement.
 
 ## Inputs
 - Task en cours (chemin fourni par le skill appelant)
-- Fichiers référencés dans la task
+- Fichiers **source** (`src/`, `tests/`) référencés dans la task
 - `.claude/rules/*` applicables
 
 > Note: Le chemin de la task est dynamique selon la version du planning (`docs/planning/vN/tasks/TASK-XXXX.md`).
+> **NE PAS charger les fichiers specs** (`docs/specs/*`, `docs/brief.md`, `docs/scope.md`, `docs/acceptance.md`).
+> La task contient déjà les règles pertinentes dans la section "Règles métier applicables" — pas besoin d'ouvrir les fichiers originaux.
 
 ## Outputs
 - `src/*` (code)

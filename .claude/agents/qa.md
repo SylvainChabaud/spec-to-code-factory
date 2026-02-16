@@ -59,12 +59,22 @@ Valider, tester, documenter la release.
    node tools/get-planning-version.js
    # Retourne: { "dir": "docs/planning/vN", "version": N, ... }
    ```
-2. ✓ Charger `docs/testing/plan.md` et `docs/acceptance.md`
+2. ✓ **Charger les critères d'acceptance** :
+   - **V1 (greenfield)** : Charger `docs/acceptance.md` en entier
+   - **V2+ (brownfield)** : Charger le **delta de la version courante** :
+     ```bash
+     node tools/extract-version-delta.js -f acceptance
+     ```
+     Cela extrait uniquement les critères ajoutés/modifiés pour la version courante.
+     Si le delta est insuffisant pour valider la régression, charger le fichier complet.
+   - Charger `docs/testing/plan.md` (toujours en entier)
 3. ✓ **Lire les templates** depuis `templates/qa/` et `templates/release/`
 4. ✓ Exécuter TOUS les tests (`npm test` / `pytest` / etc.)
 5. ✓ Vérifier la couverture de code (seuil minimum respecté ?)
 6. ✓ Scanner les vulnérabilités (si applicable)
-7. ✓ Valider chaque critère d'acceptance de `docs/acceptance.md`
+7. ✓ Valider chaque critère d'acceptance :
+   - V2+ : Prioriser la validation des critères du delta (nouveaux/modifiés)
+   - Les tests de régression couvrent les critères des versions précédentes
 8. ✓ Générer les outputs selon la version :
    - V1 : `docs/qa/report.md`, `docs/release/checklist.md`
    - V2+ : `docs/qa/report-vN.md`, `docs/release/checklist-vN.md`

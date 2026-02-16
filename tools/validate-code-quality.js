@@ -29,6 +29,8 @@ function getConfig() {
   const thresholds = getValidationThresholds();
   _cachedConfig = {
     coverageThreshold: thresholds.codeQuality?.testCoverage || 80,
+    branchCoverageThreshold: thresholds.codeQuality?.branchCoverage || 75,
+    functionCoverageThreshold: thresholds.codeQuality?.functionCoverage || 85,
     strictTypes: thresholds.codeQuality?.typescriptStrict !== false,
     specComplianceRequired: true,
     blockOnCritical: true
@@ -284,55 +286,70 @@ function validateTypeScript(taskFiles) {
 }
 
 /**
- * Vérifie la couverture de code (si disponible)
+ * Vérifie la couverture de code (lines, branches, functions)
+ * Lance automatiquement vitest --coverage si le rapport n'existe pas.
  */
 function validateCoverageThreshold() {
   const errors = [];
   const warnings = [];
+  const summaryPath = 'coverage/coverage-summary.json';
 
-  // Chercher un rapport de couverture
-  const coveragePaths = [
-    'coverage/coverage-summary.json',
-    'coverage/lcov-report/index.html',
-    '.nyc_output/coverage.json'
-  ];
-
-  let coverageFound = false;
-  let coveragePercent = null;
-
-  for (const covPath of coveragePaths) {
-    if (fs.existsSync(covPath)) {
-      coverageFound = true;
-
-      if (covPath.endsWith('.json')) {
-        try {
-          const coverage = JSON.parse(fs.readFileSync(covPath, 'utf-8'));
-          if (coverage.total?.lines?.pct) {
-            coveragePercent = coverage.total.lines.pct;
-          }
-        } catch (e) {
-          // Ignore parsing errors
-        }
+  // Si pas de rapport, tenter de le generer automatiquement
+  if (!fs.existsSync(summaryPath)) {
+    console.log('   ⏳ Rapport de couverture absent, lancement automatique...');
+    try {
+      execSync('npx vitest run --coverage', {
+        stdio: 'pipe',
+        encoding: 'utf-8',
+        timeout: 120000
+      });
+    } catch (e) {
+      // Les tests peuvent echouer mais le rapport peut quand meme etre genere
+      if (!fs.existsSync(summaryPath)) {
+        errors.push('Impossible de generer le rapport de couverture (vitest run --coverage a echoue)');
+        return { errors, warnings, passed: false };
       }
-      break;
     }
   }
 
-  if (!coverageFound) {
-    warnings.push('Aucun rapport de couverture trouvé (npm run coverage recommandé)');
-    return { errors, warnings, passed: true, skipped: true };
+  // Lire le rapport
+  let coverage;
+  try {
+    coverage = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
+  } catch (e) {
+    errors.push(`Erreur lecture ${summaryPath}: ${e.message}`);
+    return { errors, warnings, passed: false };
   }
 
   const config = getConfig();
-  if (coveragePercent !== null && coveragePercent < config.coverageThreshold) {
-    errors.push(`Couverture insuffisante: ${coveragePercent.toFixed(1)}% (minimum: ${config.coverageThreshold}%)`);
+  const total = coverage.total || {};
+
+  // Verifier les 3 metriques
+  const checks = [
+    { name: 'Lines', pct: total.lines?.pct, threshold: config.coverageThreshold },
+    { name: 'Branches', pct: total.branches?.pct, threshold: config.branchCoverageThreshold },
+    { name: 'Functions', pct: total.functions?.pct, threshold: config.functionCoverageThreshold }
+  ];
+
+  for (const check of checks) {
+    if (check.pct == null) {
+      warnings.push(`Metrique ${check.name} non disponible dans le rapport`);
+      continue;
+    }
+    if (check.pct < check.threshold) {
+      errors.push(`Couverture ${check.name} insuffisante: ${check.pct.toFixed(1)}% (minimum: ${check.threshold}%)`);
+    }
   }
 
   return {
     errors,
     warnings,
     passed: errors.length === 0,
-    coverage: coveragePercent
+    coverage: {
+      lines: total.lines?.pct ?? null,
+      branches: total.branches?.pct ?? null,
+      functions: total.functions?.pct ?? null
+    }
   };
 }
 
@@ -494,7 +511,9 @@ if (!arg) {
   console.log('');
   console.log('Mode: STRICT (bloque si non-conformité critique)');
   const config = getConfig();
-  console.log(`  - Couverture minimum: ${config.coverageThreshold}%`);
+  console.log(`  - Couverture Lines minimum: ${config.coverageThreshold}%`);
+  console.log(`  - Couverture Branches minimum: ${config.branchCoverageThreshold}%`);
+  console.log(`  - Couverture Functions minimum: ${config.functionCoverageThreshold}%`);
   console.log(`  - Types TypeScript: ${config.strictTypes ? 'requis' : 'optionnel'}`);
   console.log(`  - Conformité specs: ${config.specComplianceRequired ? 'requis' : 'optionnel'}`);
   process.exit(0);

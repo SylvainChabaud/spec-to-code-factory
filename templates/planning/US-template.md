@@ -132,9 +132,7 @@ Quelle valeur apporte-t-elle à l'utilisateur ou au business ?]
 ## Références
 
 - **EPIC** : [EPIC-XXX](../epics.md#epic-xxx)
-- **Specs** : [system.md](../../specs/system.md), [domain.md](../../specs/domain.md)
-- **API** : [api.md](../../specs/api.md#endpoint-xxx)
-- **ADR** : [ADR-0001](../../adr/ADR-0001-stack.md)
+- **ADR** : [ADR-XXXX — Titre de la décision pertinente]
 
 ---
 
