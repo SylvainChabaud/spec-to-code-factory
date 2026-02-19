@@ -45,7 +45,8 @@ if (isEnabled()) {
     const data = JSON.stringify({
       agent: input.agent_type,
       source: 'subagent-spawn',
-      agentId: input.agent_id
+      agentId: input.agent_id,
+      description: input.description || null
     });
     execSync(`node tools/instrumentation/collector.js agent "${data.replace(/"/g, '\\"')}"`, {
       stdio: 'ignore',

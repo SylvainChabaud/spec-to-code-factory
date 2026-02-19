@@ -49,6 +49,10 @@ node tools/factory-state.js set evolutionVersion <N>
 node tools/factory-state.js set evolutionMode <greenfield|brownfield>
 node tools/factory-state.js set requirementsFile <file>
 
+# Marquer le pipeline comme running avec timestamp
+node tools/factory-state.js set pipeline.status running
+node tools/factory-state.js set pipeline.startedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
 # Creer la structure versionnee
 mkdir -p docs/planning/v<N>/us
 mkdir -p docs/planning/v<N>/tasks
@@ -156,6 +160,10 @@ Quand une phase retourne un marqueur `GATE_FAIL|<gate>|<erreurs>|<tentatives>` :
 ### 4. Finalisation (mode-aware)
 
 ```bash
+# Marquer le pipeline comme completed avec timestamp
+node tools/factory-state.js set pipeline.status completed
+node tools/factory-state.js set pipeline.completedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
 node tools/factory-log.js "PIPELINE" "completed" "Pipeline V<N> (<greenfield|brownfield>) termine avec succes"
 ```
 

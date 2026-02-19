@@ -52,10 +52,12 @@ const GATES = {
         files: [
           'docs/specs/system.md',
           'docs/specs/domain.md',
-          'docs/specs/api.md'
+          'docs/specs/api.md',
+          'docs/specs/stack-reference.md'
         ],
         patterns: [
-          { glob: 'docs/adr/ADR-0001-*.md', min: 1 }
+          { glob: 'docs/adr/ADR-0001-*.md', min: 1 },
+          { glob: '.claude/rules/*.md', min: 1 }
         ]
       };
 
@@ -81,7 +83,8 @@ const GATES = {
     sections: {
       'docs/specs/system.md': ['## Vue d\'ensemble', '## Contraintes non-fonctionnelles'],
       'docs/specs/domain.md': ['## Concepts clés', '## Entités'],
-      'docs/specs/api.md': ['## Endpoints', '## Authentification']
+      'docs/specs/api.md': ['## Endpoints', '## Authentification'],
+      'docs/specs/stack-reference.md': ['## Dependencies runtime', '## Dependencies dev', '## Configurations de reference']
     },
     secretsScan: true, // Scanne les secrets avant de continuer
     projectConfigValidation: true, // Vérifie la validité du project-config.json
@@ -162,11 +165,21 @@ function fileExists(filePath) {
   return fs.existsSync(filePath);
 }
 
+/**
+ * Strip diacritical marks (accents) from a string.
+ * "Résumé exécutif" → "Resume executif"
+ */
+function normalizeAccents(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function hasSection(filePath, section) {
   if (!fileExists(filePath)) return false;
   const content = fs.readFileSync(filePath, 'utf-8');
   if (section instanceof RegExp) return section.test(content);
-  return content.includes(section);
+  // Exact match first, then accent-insensitive fallback
+  if (content.includes(section)) return true;
+  return normalizeAccents(content).includes(normalizeAccents(section));
 }
 
 /**
@@ -926,6 +939,7 @@ const TEMPLATE_MAP = {
   'docs/specs/system.md': 'templates/specs/system.md',
   'docs/specs/domain.md': 'templates/specs/domain.md',
   'docs/specs/api.md': 'templates/specs/api.md',
+  'docs/specs/stack-reference.md': 'templates/specs/stack-reference.md',
   'docs/qa/report.md': 'templates/qa/report-template.md',
   'docs/release/checklist.md': 'templates/release/checklist-template.md',
   'docs/testing/plan.md': 'templates/testing/plan.md',

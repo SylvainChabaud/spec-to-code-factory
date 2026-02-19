@@ -8,8 +8,8 @@ allowed-tools: Read, Glob, Grep, Task, Bash, AskUserQuestion
 
 Tu es l'orchestrateur de la phase BREAK.
 
-> **⚠️ Phase CRITIQUE** : Le cadrage du besoin détermine la qualité de tout le projet.
-> L'interaction avec l'utilisateur pour clarifier les ambiguïtés est ESSENTIELLE.
+> **Phase CRITIQUE** : Le cadrage du besoin determine la qualite de tout le projet.
+> L'interaction avec l'utilisateur pour clarifier les ambiguites est ESSENTIELLE.
 
 ## Workflow
 
@@ -20,37 +20,45 @@ Tu es l'orchestrateur de la phase BREAK.
    ```
    Extraire : `evolutionMode`, `evolutionVersion`, `requirementsFile`.
 
-1. **Verifier Gate 0 (entrée)** : Valider le fichier requirements
+1. **Verifier Gate 0 (entree)** : Valider le fichier requirements
    ```bash
    node tools/gate-check.js 0 --json
    ```
-   - Si `status === "FAIL"` → STOP immédiat (prérequis manquants, ne peut pas corriger).
-   - Les erreurs de type `requirements` sont `fixable: false` — l'utilisateur DOIT compléter les sections.
-   - Terminer avec : `GATE_FAIL|0|<résumé erreurs>|0`
+   - Si `status === "FAIL"` → STOP immediat (prerequis manquants, ne peut pas corriger).
+   - Les erreurs de type `requirements` sont `fixable: false` — l'utilisateur DOIT completer les sections.
+   - Terminer avec : `GATE_FAIL|0|<resume erreurs>|0`
 
 2. **Informer l'utilisateur** :
    ```
    "Phase BREAK - Cadrage du besoin
 
    Je vais analyser vos requirements et vous poser des questions de clarification.
-   Vos réponses seront stockées dans docs/factory/questions.md
+   Vos reponses seront stockees dans docs/factory/questions.md
 
-   Vous pouvez répondre :
-   - Directement dans le terminal (recommandé)
-   - Ou en éditant docs/factory/questions.md puis relancer /factory-intake"
+   Vous pouvez repondre :
+   - Directement dans le terminal (recommande)
+   - Ou en editant docs/factory/questions.md puis relancer /factory-intake"
    ```
 
 3a. **Phase ANALYSE** - Deleguer a l'agent `analyst` (analyse seule) :
+   ```bash
+   # Instrumenter la delegation (pas de hooks dans le skill inline non plus)
+   node tools/instrumentation/collector.js agent '{"agent":"analyst","source":"factory-intake","phase":"analyse"}'
+   ```
    ```
    Task(
      subagent_type: "analyst",
      prompt: "MODE DELEGATION - PHASE ANALYSE UNIQUEMENT.
      Fichier requirements: <requirementsFile>. Mode: <evolutionMode>. Version: <evolutionVersion>.
      Analyse le requirements, identifie les ambiguites et questions.
+     Lis le template templates/break/questions-template.md AVANT de generer le fichier questions.
      Ecris le fichier questions : docs/factory/questions.md (V1) ou questions-v<evolutionVersion>.md (V2+).
-     IMPORTANT:
+     IMPORTANT: Respecte EXACTEMENT le format du template (colonnes, statuts).
      - NE PAS utiliser AskUserQuestion (le skill s'en charge)
      - NE PAS generer brief.md, scope.md, acceptance.md
+     - NE PAS inventer de numeros de version pour les librairies.
+       Ecrire uniquement le nom de la lib (ex: 'Tailwind CSS', pas 'Tailwind CSS v3' ou 'Tailwind CSS 4+').
+       Les versions seront verifiees automatiquement en phase MODEL via WebSearch.
      - Retourne dans ta reponse la LISTE des questions identifiees avec leur priorite (bloquante/optionnelle) et les hypotheses proposees.",
      description: "Analyst - Phase ANALYSE (delegation)"
    )
@@ -73,6 +81,9 @@ Tu es l'orchestrateur de la phase BREAK.
    > car les subagents ne posent pas les questions de maniere fiable.
 
 3c. **Phase GENERATION** - Deleguer a l'agent `analyst` (generation des documents) :
+   ```bash
+   node tools/instrumentation/collector.js agent '{"agent":"analyst","source":"factory-intake","phase":"generation"}'
+   ```
    ```
    Task(
      subagent_type: "analyst",
@@ -83,16 +94,24 @@ Tu es l'orchestrateur de la phase BREAK.
      Les reponses de l'utilisateur sont dans la colonne 'Reponse' du tableau.
      Si mode=greenfield: CREATE docs/brief.md, scope.md, acceptance.md.
      Si mode=brownfield: EDIT les docs existants pour les enrichir.
+     Lis les templates AVANT de generer les documents :
+     - templates/break/brief-template.md
+     - templates/break/scope-template.md
+     - templates/break/acceptance-template.md
+     IMPORTANT: Respecte EXACTEMENT les headings des templates (##).
      Integre les reponses de l'utilisateur dans les documents generes.
      IMPORTANT:
      - NE PAS utiliser AskUserQuestion (les reponses sont deja dans le fichier questions)
      - Lire le fichier questions AVANT de generer les documents
-     - Les hypotheses acceptees doivent etre marquees comme telles dans brief.md",
+     - Les hypotheses acceptees doivent etre marquees comme telles dans brief.md
+     - NE PAS inventer de numeros de version pour les librairies.
+       Ecrire uniquement le nom de la lib (ex: 'Tailwind CSS', pas 'Tailwind CSS v3').
+       Les versions seront verifiees automatiquement en phase MODEL via WebSearch.",
      description: "Analyst - Phase GENERATION (delegation)"
    )
    ```
 
-4. **Exécuter Gate 1 (avec auto-remediation)** :
+4. **Executer Gate 1 (avec auto-remediation)** :
 
    ```bash
    node tools/gate-check.js 1 --json
@@ -100,45 +119,50 @@ Tu es l'orchestrateur de la phase BREAK.
 
    Suivre le **protocole standard de gate handling** :
 
-   **Tentative 1** : Analyser le JSON retourné.
-   - Si `status === "PASS"` → continuer à l'étape 5.
+   **Tentative 1** : Analyser le JSON retourne.
+   - Si `status === "PASS"` → continuer a l'etape 5.
    - Si `status === "FAIL"` :
-     - Lire `errors[]` et identifier les erreurs `fixable: true`.
-     - Pour chaque erreur fixable : corriger directement (créer fichier/section manquante)
-       ou relancer l'agent analyst en phase GENERATION avec un prompt ciblé sur les erreurs.
-     - Re-exécuter : `node tools/gate-check.js 1 --json`
+     - Lire `errors[]`. Pour chaque erreur `fixable: true` :
+       - `missing_file` → relancer l'agent analyst en phase GENERATION avec prompt cible : "Genere le fichier [fichier]. Lis le template [template] et respecte exactement les headings."
+         - `brief.md` → template `templates/break/brief-template.md`
+         - `scope.md` → template `templates/break/scope-template.md`
+         - `acceptance.md` → template `templates/break/acceptance-template.md`
+       - `missing_section` → relancer l'agent analyst en phase GENERATION avec prompt cible : "Corrige [fichier]. Section manquante : [section]. Lis le template (ref dans le message d'erreur) et respecte exactement les headings."
+       - `structure` → creer les repertoires manquants directement (`mkdir -p`).
+     - Pour chaque erreur `fixable: false` → STOP, ne pas retenter.
+     - Re-executer : `node tools/gate-check.js 1 --json`
 
-   **Tentative 2** : Si toujours FAIL, relancer l'agent analyst complet (phase GENERATION).
-   - Re-exécuter : `node tools/gate-check.js 1 --json`
+   **Tentative 2** : Relancer l'agent analyst complet (phase GENERATION).
+   - Re-executer : `node tools/gate-check.js 1 --json`
 
-   **Tentative 3** : Si toujours FAIL après 3 tentatives, retourner le rapport d'échec.
+   **Tentative 3** : Si toujours FAIL apres 3 tentatives, retourner le rapport d'echec.
    - **NE PAS continuer le pipeline.**
-   - Terminer avec ce message EXACT en fin de réponse :
+   - Terminer avec ce message EXACT en fin de reponse :
      ```
-     GATE_FAIL|1|<résumé des erreurs séparées par ;>|3
+     GATE_FAIL|1|<resume des erreurs separees par ;>|3
      ```
      Exemple : `GATE_FAIL|1|Fichier manquant: docs/brief.md;Section manquante: ## IN|3`
 
 5. **Logger** via :
    ```bash
-   node tools/factory-log.js "BREAK" "completed" "Phase BREAK terminée - X questions posées, Y répondues"
+   node tools/factory-log.js "BREAK" "completed" "Phase BREAK terminee - X questions posees, Y repondues"
    ```
 
-6. **Retourner** un résumé avec :
-   - Liste des artefacts créés
-   - Nombre de questions posées/répondues
-   - Hypothèses générées (si applicable)
+6. **Retourner** un resume avec :
+   - Liste des artefacts crees
+   - Nombre de questions posees/repondues
+   - Hypotheses generees (si applicable)
 
 ## Gestion des questions
 
 | Situation | Action |
 |-----------|--------|
-| Questions bloquantes non répondues | STOP - Demander réponse |
-| Questions optionnelles non répondues | Continuer avec hypothèse explicite |
-| Utilisateur veut répondre plus tard | Pause - Expliquer comment reprendre |
+| Questions bloquantes non repondues | STOP - Demander reponse |
+| Questions optionnelles non repondues | Continuer avec hypothese explicite |
+| Utilisateur veut repondre plus tard | Pause - Expliquer comment reprendre |
 
-## Protocole d'échec
+## Protocole d'echec
 
-- **Gate d'entrée** (Gate 0) : Si FAIL → STOP immédiat (prérequis manquants, ne peut pas corriger).
-- **Gate de sortie** (Gate 1) : Auto-remediation 3x puis marqueur `GATE_FAIL` si échec persistant.
-- **Jamais** de STOP silencieux — toujours retourner un rapport structuré.
+- **Gate d'entree** (Gate 0) : Si FAIL → STOP immediat (prerequis manquants, ne peut pas corriger).
+- **Gate de sortie** (Gate 1) : Auto-remediation 3x puis marqueur `GATE_FAIL` si echec persistant.
+- **Jamais** de STOP silencieux — toujours retourner un rapport structure.
