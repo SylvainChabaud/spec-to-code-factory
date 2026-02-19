@@ -42,7 +42,7 @@ const PII_PATTERNS = [
 ];
 
 const SCAN_DIRS = ['src', 'tests', 'docs', '.'];
-const SKIP_PATTERNS = [/node_modules/, /\.git/, /\.env\.example/, /coverage/, /dist/, /release/];
+const SKIP_PATTERNS = [/node_modules/, /\.git/, /\.env\.example/, /coverage/, /dist/, /release/, /pnpm-lock\.yaml/, /package-lock\.json/];
 
 // Fichiers de cles a detecter (peu importe le contenu)
 const SENSITIVE_FILE_PATTERNS = [

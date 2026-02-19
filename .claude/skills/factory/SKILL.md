@@ -1,7 +1,7 @@
 ---
 name: factory
 description: "Pipeline complet requirements → release (auto-detect greenfield V1 / brownfield V2+)"
-allowed-tools: Read, Glob, Grep, Bash, Task, Skill
+allowed-tools: Read, Glob, Grep, Bash, Task, Skill, AskUserQuestion
 ---
 
 # Factory - Pipeline Complet (Unifie)
@@ -44,19 +44,14 @@ ls docs/brief.md docs/scope.md docs/acceptance.md docs/specs/
 ### 2. Initialisation (mode-aware)
 
 ```bash
-# Reset instrumentation pour un timeline propre
-node tools/instrumentation/collector.js reset
-
 # Initialiser state.json avec la version detectee
 node tools/factory-state.js set evolutionVersion <N>
 node tools/factory-state.js set evolutionMode <greenfield|brownfield>
+node tools/factory-state.js set requirementsFile <file>
 
 # Creer la structure versionnee
 mkdir -p docs/planning/v<N>/us
 mkdir -p docs/planning/v<N>/tasks
-
-# Instrumentation (si activee)
-node tools/instrumentation/collector.js skill "{\"skill\":\"factory\",\"version\":<N>,\"mode\":\"<greenfield|brownfield>\"}"
 
 # Log demarrage
 node tools/factory-log.js "PIPELINE" "started" "Demarrage du pipeline V<N> (<greenfield|brownfield>)"
@@ -64,28 +59,99 @@ node tools/factory-log.js "PIPELINE" "started" "Demarrage du pipeline V<N> (<gre
 
 ### 3. Pipeline 5 phases (identique pour les deux modes)
 
-Les skills de phase gerent leur propre delegation d'agent.
+Les skills de phase gerent leur propre delegation d'agent et auto-remediation (3 tentatives).
 Note : `factory-intake` tourne inline (pas de fork) pour permettre `AskUserQuestion`.
 
+> **GESTION D'ERREUR** : Apres chaque phase, verifier si la reponse contient le marqueur `GATE_FAIL`.
+> Si oui, appliquer le **Protocole d'echec de phase** (section ci-dessous).
+
 #### Phase 1 - BREAK
+```bash
+node tools/factory-state.js phase break running
+```
 Invoque `/factory-intake` et attends le resultat.
-Si Gate 1 echoue → STOP et rapport d'erreur.
+→ Verifier le marqueur `GATE_FAIL` dans la reponse. Si present → **Protocole d'echec de phase**.
+```bash
+node tools/factory-state.js phase break completed
+```
 
 #### Phase 2 - MODEL
+```bash
+node tools/factory-state.js phase model running
+```
 Invoque `/factory-spec` et attends le resultat.
-Si Gate 2 echoue → STOP et rapport d'erreur.
+→ Verifier le marqueur `GATE_FAIL` dans la reponse. Si present → **Protocole d'echec de phase**.
+```bash
+node tools/factory-state.js phase model completed
+```
+
+**Post-MODEL : Synchroniser le compteur ADR** (le fork peut ne pas l'avoir fait) :
+```bash
+ADR_COUNT=$(ls docs/adr/ADR-*.md 2>/dev/null | wc -l)
+CURRENT=$(node tools/factory-state.js counter adr get)
+if [ "$CURRENT" != "$ADR_COUNT" ]; then
+  while [ "$(node tools/factory-state.js counter adr get)" -lt "$ADR_COUNT" ]; do
+    node tools/factory-state.js counter adr next > /dev/null
+  done
+fi
+```
 
 #### Phase 3 - ACT (planning)
+```bash
+node tools/factory-state.js phase plan running
+```
 Invoque `/factory-plan` et attends le resultat.
-Si Gate 3 echoue → STOP et rapport d'erreur.
+→ Verifier le marqueur `GATE_FAIL` dans la reponse. Si present → **Protocole d'echec de phase**.
+```bash
+node tools/factory-state.js phase plan completed
+```
 
 #### Phase 4 - ACT (build)
+```bash
+node tools/factory-state.js phase build running
+```
 Invoque `/factory-build` et attends le resultat.
-Si Gate 4 echoue → STOP et rapport d'erreur.
+→ Verifier le marqueur `GATE_FAIL` dans la reponse. Si present → **Protocole d'echec de phase**.
+```bash
+node tools/factory-state.js phase build completed
+```
 
 #### Phase 5 - DEBRIEF
+```bash
+node tools/factory-state.js phase debrief running
+```
 Invoque `/factory-qa` et attends le resultat.
-Si Gate 5 echoue → STOP et rapport d'erreur.
+→ Verifier le marqueur `GATE_FAIL` dans la reponse. Si present → **Protocole d'echec de phase**.
+```bash
+node tools/factory-state.js phase debrief completed
+```
+
+### 3b. Protocole d'echec de phase (OBLIGATOIRE)
+
+Quand une phase retourne un marqueur `GATE_FAIL|<gate>|<erreurs>|<tentatives>` :
+
+1. **Parser le marqueur** : extraire le numero de gate, les erreurs, et le nombre de tentatives.
+
+2. **Logger l'echec** :
+   ```bash
+   node tools/factory-log.js "PIPELINE" "gate-fail" "Gate <gate> FAIL apres <tentatives> tentatives: <erreurs>"
+   ```
+
+3. **Presenter l'echec a l'utilisateur** via `AskUserQuestion` :
+
+   Question : "Le pipeline a echoue au Gate <gate> (<nom_gate>) apres <tentatives> tentatives d'auto-correction.\n\nErreurs :\n<liste des erreurs>\n\nQue souhaitez-vous faire ?"
+   Options :
+   - **Relancer la phase** : "Re-execute la phase complete depuis le debut (nouvelle tentative)"
+   - **Corriger et reprendre** : "Je corrige manuellement, puis je relance avec /factory-resume"
+   - **Abandonner** : "Arrete le pipeline (les artefacts deja generes sont conserves)"
+
+4. **Agir selon le choix** :
+
+   | Choix | Action |
+   |-------|--------|
+   | **Relancer la phase** | Re-invoquer le skill de la phase echouee. Si echec a nouveau → re-proposer les options. Maximum 2 relances manuelles. |
+   | **Corriger et reprendre** | Logger `node tools/factory-log.js "PIPELINE" "paused" "En attente correction manuelle"`. Retourner les instructions pour reprendre avec `/factory-resume`. STOP propre. |
+   | **Abandonner** | Logger `node tools/factory-log.js "PIPELINE" "aborted" "Pipeline abandonne par l'utilisateur au Gate <gate>"`. Si brownfield → afficher les commandes de rollback. STOP. |
 
 ### 4. Finalisation (mode-aware)
 
@@ -185,7 +251,8 @@ node tools/factory-state.js get
 ## Regles critiques
 
 - **Sequentiel strict** : Chaque phase DOIT reussir (gate OK) avant la suivante
-- **Si un gate echoue** → STOP immediat, logger l'erreur, retourner rapport
+- **Si un gate echoue** → La phase tente l'auto-remediation (3x). Si echec persistant → marqueur `GATE_FAIL` → l'orchestrateur applique le Protocole d'echec de phase (interaction utilisateur)
+- **Jamais de STOP silencieux** : Toute erreur est soit auto-corrigee, soit presentee a l'utilisateur avec des options
 - **Pas de nesting** : Invoquer les skills directement, ils gerent leur propre fork
 
 ## Erreurs courantes

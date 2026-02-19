@@ -51,30 +51,16 @@ ${message ? `- **Message**: ${message}` : ''}
   console.log(`📝 Logged: ${phase} - ${agent} - ${status}`);
 
   // Also record to instrumentation (if enabled)
+  // Only phase-end and task events — skill/agent/phase-start are handled by hooks
   if (isEnabled()) {
     try {
-      // Values that are lifecycle statuses, not real agent names
-      // Matches exact values AND patterns like "evolve-started", "run-completed"
-      const NON_AGENT_VALUES = ['completed', 'started', 'task-done', 'phase-complete'];
-      const isLifecycleValue = (val) =>
-        NON_AGENT_VALUES.includes(val) ||
-        /^.+-(started|completed|failed|skipped)$/.test(val);
-
       if (agent === 'task-done') {
-        // Emit task_completed (not agent_delegated)
         const taskData = JSON.stringify({ task: status, status: 'completed' });
         execSync(`node tools/instrumentation/collector.js task "${taskData.replace(/"/g, '\\"')}"`, {
           stdio: 'ignore', timeout: 1000
         });
-      } else if (agent && !isLifecycleValue(agent)) {
-        // Real agent only
-        const agentData = JSON.stringify({ agent: agent.toLowerCase(), source: `factory-${phase.toLowerCase()}` });
-        execSync(`node tools/instrumentation/collector.js agent "${agentData.replace(/"/g, '\\"')}"`, {
-          stdio: 'ignore', timeout: 1000
-        });
       }
 
-      // Phase events
       if (status === 'PASS' || agent === 'completed') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'PASS', message });
         execSync(`node tools/instrumentation/collector.js phase-end "${phaseData.replace(/"/g, '\\"')}"`, {
@@ -83,11 +69,6 @@ ${message ? `- **Message**: ${message}` : ''}
       } else if (status === 'FAIL') {
         const phaseData = JSON.stringify({ phase: phase.toUpperCase(), status: 'FAIL', message });
         execSync(`node tools/instrumentation/collector.js phase-end "${phaseData.replace(/"/g, '\\"')}"`, {
-          stdio: 'ignore', timeout: 1000
-        });
-      } else if (agent === 'started') {
-        const phaseData = JSON.stringify({ phase: phase.toUpperCase(), skill: `factory-${phase.toLowerCase()}` });
-        execSync(`node tools/instrumentation/collector.js phase-start "${phaseData.replace(/"/g, '\\"')}"`, {
           stdio: 'ignore', timeout: 1000
         });
       }

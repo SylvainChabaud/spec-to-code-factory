@@ -13,23 +13,20 @@ Tu es l'orchestrateur de la phase BREAK.
 
 ## Workflow
 
-0. **Detection et instrumentation** - Detecter le mode et enregistrer :
+0. **Lire le state** :
    ```bash
-   # Detecter le fichier requirements le plus recent
-   node tools/detect-requirements.js
-   # Retourne: { "file": "input/requirements-N.md", "version": N, "isEvolution": true/false }
-
-   node tools/instrumentation/collector.js phase-start "{\"phase\":\"BREAK\",\"skill\":\"factory-intake\"}"
-   node tools/instrumentation/collector.js skill "{\"skill\":\"factory-intake\"}"
+   node tools/factory-state.js get
+   # Retourne: { "evolutionMode": "greenfield|brownfield", "evolutionVersion": N, "requirementsFile": "input/requirements-N.md", ... }
    ```
+   Extraire : `evolutionMode`, `evolutionVersion`, `requirementsFile`.
 
-1. **Verifier Gate 0** : Valider le fichier requirements detecte
+1. **Verifier Gate 0 (entrée)** : Valider le fichier requirements
    ```bash
-   node tools/gate-check.js 0
+   node tools/gate-check.js 0 --json
    ```
-   - Si exit code = 1 → Fichier manquant, STOP
-   - Si exit code = 2 → Sections manquantes/vides, STOP avec rapport
-   - L'utilisateur DOIT completer toutes les sections avant de continuer
+   - Si `status === "FAIL"` → STOP immédiat (prérequis manquants, ne peut pas corriger).
+   - Les erreurs de type `requirements` sont `fixable: false` — l'utilisateur DOIT compléter les sections.
+   - Terminer avec : `GATE_FAIL|0|<résumé erreurs>|0`
 
 2. **Informer l'utilisateur** :
    ```
@@ -44,17 +41,13 @@ Tu es l'orchestrateur de la phase BREAK.
    ```
 
 3a. **Phase ANALYSE** - Deleguer a l'agent `analyst` (analyse seule) :
-   ```bash
-   # Instrumentation (si activee)
-   node tools/instrumentation/collector.js agent "{\"agent\":\"analyst\",\"source\":\"factory-intake\",\"mode\":\"analyse\"}"
-   ```
    ```
    Task(
      subagent_type: "analyst",
      prompt: "MODE DELEGATION - PHASE ANALYSE UNIQUEMENT.
-     Execute detect-requirements.js pour trouver le fichier requirements.
+     Fichier requirements: <requirementsFile>. Mode: <evolutionMode>. Version: <evolutionVersion>.
      Analyse le requirements, identifie les ambiguites et questions.
-     Ecris le fichier questions : docs/factory/questions.md (V1) ou questions-vN.md (V2+).
+     Ecris le fichier questions : docs/factory/questions.md (V1) ou questions-v<evolutionVersion>.md (V2+).
      IMPORTANT:
      - NE PAS utiliser AskUserQuestion (le skill s'en charge)
      - NE PAS generer brief.md, scope.md, acceptance.md
@@ -80,20 +73,16 @@ Tu es l'orchestrateur de la phase BREAK.
    > car les subagents ne posent pas les questions de maniere fiable.
 
 3c. **Phase GENERATION** - Deleguer a l'agent `analyst` (generation des documents) :
-   ```bash
-   # Instrumentation (si activee)
-   node tools/instrumentation/collector.js agent "{\"agent\":\"analyst\",\"source\":\"factory-intake\",\"mode\":\"generation\"}"
-   ```
    ```
    Task(
      subagent_type: "analyst",
      prompt: "MODE DELEGATION - PHASE GENERATION.
-     Execute detect-requirements.js pour trouver le fichier requirements.
+     Fichier requirements: <requirementsFile>. Mode: <evolutionMode>. Version: <evolutionVersion>.
      Lis le fichier questions mis a jour avec les reponses utilisateur :
-     docs/factory/questions.md (V1) ou docs/factory/questions-vN.md (V2+).
+     docs/factory/questions.md (V1) ou docs/factory/questions-v<evolutionVersion>.md (V2+).
      Les reponses de l'utilisateur sont dans la colonne 'Reponse' du tableau.
-     Si isEvolution=false (V1): CREATE docs/brief.md, scope.md, acceptance.md
-     Si isEvolution=true (V2+): EDIT les docs existants pour les enrichir.
+     Si mode=greenfield: CREATE docs/brief.md, scope.md, acceptance.md.
+     Si mode=brownfield: EDIT les docs existants pour les enrichir.
      Integre les reponses de l'utilisateur dans les documents generes.
      IMPORTANT:
      - NE PAS utiliser AskUserQuestion (les reponses sont deja dans le fichier questions)
@@ -103,20 +92,39 @@ Tu es l'orchestrateur de la phase BREAK.
    )
    ```
 
-4. **Vérifier les outputs** :
-   - `docs/factory/questions.md` contient les questions posées et réponses
-   - `docs/brief.md` existe et contient section "Hypothèses" (si questions non répondues)
-   - `docs/scope.md` existe et contient sections "IN" et "OUT"
-   - `docs/acceptance.md` existe et contient "Critères globaux"
+4. **Exécuter Gate 1 (avec auto-remediation)** :
 
-5. **Exécuter Gate 1** : `node tools/gate-check.js 1`
+   ```bash
+   node tools/gate-check.js 1 --json
+   ```
 
-6. **Logger** via :
+   Suivre le **protocole standard de gate handling** :
+
+   **Tentative 1** : Analyser le JSON retourné.
+   - Si `status === "PASS"` → continuer à l'étape 5.
+   - Si `status === "FAIL"` :
+     - Lire `errors[]` et identifier les erreurs `fixable: true`.
+     - Pour chaque erreur fixable : corriger directement (créer fichier/section manquante)
+       ou relancer l'agent analyst en phase GENERATION avec un prompt ciblé sur les erreurs.
+     - Re-exécuter : `node tools/gate-check.js 1 --json`
+
+   **Tentative 2** : Si toujours FAIL, relancer l'agent analyst complet (phase GENERATION).
+   - Re-exécuter : `node tools/gate-check.js 1 --json`
+
+   **Tentative 3** : Si toujours FAIL après 3 tentatives, retourner le rapport d'échec.
+   - **NE PAS continuer le pipeline.**
+   - Terminer avec ce message EXACT en fin de réponse :
+     ```
+     GATE_FAIL|1|<résumé des erreurs séparées par ;>|3
+     ```
+     Exemple : `GATE_FAIL|1|Fichier manquant: docs/brief.md;Section manquante: ## IN|3`
+
+5. **Logger** via :
    ```bash
    node tools/factory-log.js "BREAK" "completed" "Phase BREAK terminée - X questions posées, Y répondues"
    ```
 
-7. **Retourner** un résumé avec :
+6. **Retourner** un résumé avec :
    - Liste des artefacts créés
    - Nombre de questions posées/répondues
    - Hypothèses générées (si applicable)
@@ -129,6 +137,8 @@ Tu es l'orchestrateur de la phase BREAK.
 | Questions optionnelles non répondues | Continuer avec hypothèse explicite |
 | Utilisateur veut répondre plus tard | Pause - Expliquer comment reprendre |
 
-## En cas d'échec
+## Protocole d'échec
 
-Si Gate 1 échoue → STOP et rapport des sections manquantes.
+- **Gate d'entrée** (Gate 0) : Si FAIL → STOP immédiat (prérequis manquants, ne peut pas corriger).
+- **Gate de sortie** (Gate 1) : Auto-remediation 3x puis marqueur `GATE_FAIL` si échec persistant.
+- **Jamais** de STOP silencieux — toujours retourner un rapport structuré.

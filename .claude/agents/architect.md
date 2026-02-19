@@ -83,6 +83,3 @@ Quand une version SUPPRIME un composant, hook ou type :
 - **NE PAS** utiliser `~~strikethrough~~` ni `SUPPRIME VN`
 - L'historique git conserve la traçabilite
 
-## Anti-dérive
-- Ne PAS over-engineer
-- Choisir la solution la plus simple qui répond au besoin

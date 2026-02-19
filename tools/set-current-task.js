@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Set Current Task - Manage active task state for anti-drift validation
+ * Set Current Task - Manage active task state for instrumentation
  *
  * Usage:
  *   node tools/set-current-task.js set <task-file>   # Set current task
@@ -8,7 +8,7 @@
  *   node tools/set-current-task.js clear             # Clear current task
  *
  * The current task is stored in docs/factory/current-task.txt
- * This file is read by posttooluse-validate.js to enforce file scope.
+ * This file is read by posttooluse-validate.js for instrumentation tracking.
  *
  * Exit codes:
  *   0 = Success

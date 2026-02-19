@@ -11,7 +11,7 @@ Tu es l'orchestrateur de la phase planning.
 
 ## Workflow
 
-0. **Instrumentation et version** - Enregistrer le debut de phase et obtenir la version :
+0. **Obtenir la version** :
    ```bash
    # Obtenir la version courante
    node tools/get-planning-version.js
@@ -20,18 +20,17 @@ Tu es l'orchestrateur de la phase planning.
    # Creer le repertoire si necessaire (evolution)
    mkdir -p docs/planning/v<N>/us
    mkdir -p docs/planning/v<N>/tasks
-
-   node tools/instrumentation/collector.js phase-start "{\"phase\":\"ACT\",\"skill\":\"factory-plan\"}"
-   node tools/instrumentation/collector.js skill "{\"skill\":\"factory-plan\"}"
    ```
 
-1. **Verifier Gate 2** : `node tools/gate-check.js 2`
+1. **Verifier Gate 2 (entrée)** :
+   ```bash
+   node tools/gate-check.js 2 --json
+   ```
+   - Si `status === "FAIL"` → STOP immédiat (prérequis manquants, ne peut pas corriger).
+   - Terminer avec : `GATE_FAIL|2|<résumé erreurs>|0`
 
 2. **Déléguer à l'agent `scrum-master`** via Task tool :
    ```bash
-   # Instrumentation (si activée)
-   node tools/instrumentation/collector.js agent "{\"agent\":\"scrum-master\",\"source\":\"factory-plan\"}"
-
    # Pré-filtrage : lister uniquement les ADR actifs (exclut SUPERSEDED)
    node tools/list-active-adrs.js --summary
    # Retourne les paths des ADR actifs, à passer dans le prompt ci-dessous
@@ -61,27 +60,39 @@ Tu es l'orchestrateur de la phase planning.
    )
    ```
 
-3. **Verifier les outputs** (chemins versionnes) :
-   - `docs/planning/v<N>/epics.md` existe
-   - Au moins 1 fichier `docs/planning/v<N>/us/US-*.md`
-   - Au moins 1 fichier `docs/planning/v<N>/tasks/TASK-*.md`
-   - Chaque TASK contient TOUTES ces sections (auto-suffisance BMAD):
-     * Objectif technique
-     * Contexte complet (règles métier applicables, extraites des specs)
-     * Fichiers concernes (liste exhaustive)
-     * Definition of Done
-     * Tests attendus
-     * Criteres de validation automatique
+3. **Exécuter Gate 3 (avec auto-remediation)** :
 
-4. **Exécuter Gate 3** : `node tools/gate-check.js 3`
-
-5. **Logger** via :
    ```bash
-   node tools/factory-log.js "ACT" "completed" "Phase planning terminee"
+   node tools/gate-check.js 3 --json
    ```
 
-6. **Retourner** un résumé avec liste des tasks créées (numérotées)
+   Suivre le **protocole standard de gate handling** :
 
-## En cas d'échec
+   **Tentative 1** : Analyser le JSON retourné.
+   - Si `status === "PASS"` → continuer à l'étape 4.
+   - Si `status === "FAIL"` :
+     - Lire `errors[]`. Pour chaque erreur `fixable: true` :
+       - `missing_file` / `missing_pattern` → relancer le scrum-master avec prompt ciblé.
+       - `task_incomplete` → relancer le scrum-master pour compléter les DoD/Tests.
+       - `task_references` → corriger les références US directement dans les fichiers task.
+     - Re-exécuter : `node tools/gate-check.js 3 --json`
 
-Si Gate 3 échoue → STOP et rapport des éléments manquants.
+   **Tentative 2** : Relancer le scrum-master complet.
+   - Re-exécuter : `node tools/gate-check.js 3 --json`
+
+   **Tentative 3** : Si toujours FAIL, retourner le rapport d'échec.
+   - **NE PAS continuer le pipeline.**
+   - Terminer avec : `GATE_FAIL|3|<résumé erreurs séparées par ;>|3`
+
+4. **Logger** via :
+   ```bash
+   node tools/factory-log.js "ACT_PLAN" "completed" "Phase planning terminee"
+   ```
+
+5. **Retourner** un résumé avec liste des tasks créées (numérotées)
+
+## Protocole d'échec
+
+- **Gate d'entrée** (Gate 2) : Si FAIL → STOP immédiat + marqueur `GATE_FAIL|2|...|0`.
+- **Gate de sortie** (Gate 3) : Auto-remediation 3x puis marqueur `GATE_FAIL|3|...|3` si échec persistant.
+- **Jamais** de STOP silencieux — toujours retourner un rapport structuré.

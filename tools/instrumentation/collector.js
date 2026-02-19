@@ -19,6 +19,24 @@
  *   export FACTORY_INSTRUMENTATION=true
  *
  * Output: docs/factory/instrumentation.json
+ *
+ * ## Architecture: Hooks vs Tools
+ *
+ * HOOKS (automatic, fired by Claude Code):
+ *   tool_invocation    pretooluse-security.js   (Bash/Read/Task)
+ *   template_used      pretooluse-security.js   (Read on templates/)
+ *   skill_invoked      pretooluse-skill.js      (Skill calls)
+ *   phase_started      pretooluse-skill.js      (factory-* phase skills)
+ *   file_written       posttooluse-validate.js  (Write/Edit)
+ *   agent_delegated    subagentstart-track.js   (SubagentStart)
+ *
+ * TOOLS (explicit, need semantic context):
+ *   gate_checked       gate-check.js     (PASS/FAIL + errors[])
+ *   task_completed     factory-log.js    (task ID + status)
+ *   phase_completed    factory-log.js    (phase + PASS/FAIL)
+ *   reset              clean.js / hook   (voluntary reset)
+ *
+ * Rule: use hooks for generic events, tools for domain-specific results.
  */
 
 import fs from 'fs';

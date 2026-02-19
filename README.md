@@ -98,57 +98,15 @@ Si `/factory-quick` detecte que la modification impacte les specs, il propose au
 
 ## Evolution de projet (V2+)
 
-Le pipeline supporte l'evolution incrementale via `/factory`.
+Le pipeline supporte l'evolution incrementale via `/factory` (auto-detect greenfield/brownfield).
+Creer `input/requirements-N.md` pour chaque nouvelle version. Voir `input/README.md` pour les conventions.
 
-### Requirements multiples
-
-```
-input/
-  requirements.md      # V1 (initial)
-  requirements-2.md    # V2 (evolution)
-  requirements-3.md    # V3 (evolution)
-```
-
-### Structure versionnee
-
-```
-docs/planning/
-  v1/           # Cree par /factory
-    epics.md
-    us/
-    tasks/
-  v2/           # Cree par /factory
-    epics.md
-    us/
-    tasks/
-```
-
-### Strategie par type de document
-
-| Document | V1 | V2+ |
-|----------|----|----|
-| brief, scope, acceptance | CREATE | EDIT (enrichir) |
-| specs (system, domain, api) | CREATE | EDIT (mettre a jour) |
-| planning | CREATE v1/ | CREATE v2/ |
-| ADR | CREATE | CREATE (nouveau) + EDIT status ancien |
-| QA reports | CREATE | CREATE (report-vN.md) |
-| CHANGELOG | CREATE | EDIT (prepend) |
-
-### Detection automatique
-
-```bash
-node tools/detect-requirements.js
-# { "file": "input/requirements-2.md", "version": 2, "isEvolution": true }
-
-node tools/get-planning-version.js
-# { "dir": "docs/planning/v2", "version": 2, ... }
-```
+En V2+, les documents existants (brief, specs, ADR) sont edites, le planning est cree dans `docs/planning/vN/`.
 
 ## Invariants
 
 1. **No Spec, No Code** : Pas de code sans specs validées
 2. **No Task, No Commit** : Chaque commit référence TASK-XXXX
-3. **Anti-dérive** : Implémentation strictement alignée au plan
 
 ## Validation
 
@@ -160,7 +118,8 @@ node tools/validate-code-quality.js  # Gate 4 : Valide code vs specs
 node tools/validate-app-assembly.js  # Gate 4 : Valide assemblage App.tsx
 node tools/validate-boundaries.js    # Gate 4 : Valide boundaries architecturales
 node tools/export-release.js         # Gate 5 : Exporte le projet livrable
-node tools/gate-check.js [0-5]       # Vérifie un gate complet
+node tools/gate-check.js [0-5]       # Vérifie un gate complet (texte)
+node tools/gate-check.js [0-5] --json # Vérifie un gate (JSON structuré)
 node tools/verify-pipeline.js        # Vérification post-pipeline complète
 ```
 
@@ -192,112 +151,22 @@ node tools/export-release.js --output ~/projets/mon-app
 
 ## Instrumentation (optionnel)
 
-Le pipeline peut tracer tous les événements pour debugging ou audit.
+Le pipeline peut tracer tous les evenements (9 types) pour debugging ou audit.
 
-### Activation
-
-Dans `.claude/settings.json` :
-```json
-"env": {
-  "FACTORY_INSTRUMENTATION": "true"
-}
-```
-
-### Événements trackés
-
-| Type | Description |
-|------|-------------|
-| `tool_invocation` | Invocation d'un tool |
-| `file_written` | Fichier écrit |
-| `template_used` | Template lu (tracking automatique via hooks) |
-| `gate_checked` | Vérification gate (0-5) |
-| `skill_invoked` | Skill invoquée |
-| `agent_delegated` | Délégation agent |
-| `phase_started` | Début de phase |
-| `phase_completed` | Fin de phase |
-| `task_completed` | Tâche terminée |
-
-### Commandes
+**Activation** dans `.claude/settings.json` : `"FACTORY_INSTRUMENTATION": "true"`
 
 ```bash
-node tools/instrumentation/collector.js status    # État
-node tools/instrumentation/collector.js summary   # Résumé
-node tools/instrumentation/collector.js reset     # Réinitialiser
-node tools/instrumentation/collector.js template  # Enregistrer usage template
 node tools/instrumentation/coverage.js            # Couverture pipeline
-node tools/instrumentation/reporter.js            # Rapport markdown
+node tools/instrumentation/collector.js status     # Etat
+node tools/instrumentation/reporter.js             # Rapport markdown
 ```
 
-### Output
-
-- `docs/factory/instrumentation.json` - Événements (append-only)
-- `docs/factory/coverage-report.md` - Rapport de couverture
-
-### Couverture pipeline réaliste
-
-Le calcul de couverture exclut les outils non attendus dans un run normal :
-- `factory-reset.js` : Uniquement avec `/reset`
-- `validate-commit-msg.js` : Hook git optionnel
-- `validate-file-scope.js` : Appelé par hooks (tracking indirect)
-
-Le tracking des templates est automatique via le hook `pretooluse-security.js` qui intercepte les lectures du dossier `templates/`.
+Output : `docs/factory/instrumentation.json` (append-only).
 
 ## Memoire hierarchique Claude Code
 
-Le repertoire `templates/claude-md/` fournit un guide complet et des templates pour configurer la **memoire hierarchique** de Claude Code via les fichiers `CLAUDE.md`.
-
-### Principe
-
-Claude Code lit ses instructions depuis plusieurs niveaux de fichiers, du plus global au plus local :
-
-```
-Enterprise Policy        (IT-managed, non modifiable)
-    ↓
-User Preferences         (personnel, tous projets)
-    ↓
-Project CLAUDE.md        (equipe, versionne dans Git)
-    ↓
-Project Rules            (modulaires, par domaine)
-    ↓
-Local Config             (personnel, non versionne)
-```
-
-Chaque niveau herite du precedent et peut le specialiser. Cela permet de combiner politique d'entreprise, preferences personnelles et regles projet.
-
-### Templates disponibles
-
-| Template | Scope | Emplacement cible |
-|----------|-------|--------------------|
-| `CLAUDE-MD-GUIDE.md` | Guide de reference | — (documentation) |
-| `enterprise-template.md` | Organisation | `C:\Program Files\ClaudeCode\CLAUDE.md` |
-| `user-template.md` | Utilisateur | `~/.claude/CLAUDE.md` |
-| `project-template.md` | Projet (equipe) | `./CLAUDE.md` |
-| `rules-template.md` | Regles modulaires | `./.claude/rules/*.md` |
-| `local-template.md` | Dev local | `./CLAUDE.local.md` |
-
-### Utilisation
-
-1. Consultez `templates/claude-md/CLAUDE-MD-GUIDE.md` pour comprendre l'architecture
-2. Copiez le template correspondant a votre besoin vers son emplacement cible
-3. Adaptez les placeholders (`{{VARIABLE}}`) a votre contexte
-
-```bash
-# Exemple : initialiser un CLAUDE.md projet
-cp templates/claude-md/project-template.md ./CLAUDE.md
-
-# Exemple : ajouter une regle modulaire
-cp templates/claude-md/rules-template.md .claude/rules/mon-domaine.md
-```
-
-### Contenu type par niveau
-
-| Niveau | Contenu |
-|--------|---------|
-| Enterprise | Securite, commandes bloquees, compliance RGPD |
-| User | Style de code, outils preferes, workflow Git |
-| Project | Stack technique, structure, conventions equipe |
-| Rules | Regles par domaine (API, tests, TypeScript...) |
-| Local | Branches en cours, ports, notes temporaires |
+Guide et templates pour configurer la memoire hierarchique de Claude Code dans `templates/claude-md/`.
+Voir `templates/claude-md/CLAUDE-MD-GUIDE.md` pour la documentation complete.
 
 ## License
 

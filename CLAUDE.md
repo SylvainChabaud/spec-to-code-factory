@@ -20,6 +20,12 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 | 4 | BUILD→QA | Tests passants + **code quality strict** + **app assembly** + **boundary check** |
 | 5 | QA→RELEASE | QA report + checklist + CHANGELOG + **export release** |
 
+### Comportement des Gates
+- **Mode JSON** : `node tools/gate-check.js <N> --json` retourne `{ gate, status, errors[], summary }` avec classification (`category`, `fixable`)
+- **Gate d'entree** (prereq phase) : Si FAIL → STOP immediat, marqueur `GATE_FAIL|<N>|<erreurs>|0`
+- **Gate de sortie** (outputs phase) : Auto-remediation 3x puis `GATE_FAIL|<N>|<erreurs>|3`
+- **Orchestrateur** : Detecte `GATE_FAIL` et propose a l'utilisateur : relancer / corriger / abandonner
+
 ## Phases
 1. **BREAK** : Normaliser le besoin → brief + scope + acceptance
 2. **MODEL** : Spécifier → specs + ADR + rules
@@ -29,7 +35,6 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 ## Invariants (ABSOLUS)
 - **No Spec, No Code** : Pas de code sans specs validées
 - **No Task, No Commit** : Chaque commit référence TASK-XXXX
-- **Anti-dérive** : Implémentation strictement alignée au plan
 - **Tasks auto-suffisantes** : Chaque task est 100% indépendante (principe BMAD)
 
 ## Conventions de nommage
@@ -63,7 +68,6 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/detect-requirements.js` : Detection automatique du dernier requirements-N.md
 - `tools/get-planning-version.js` : Obtenir le repertoire planning actif (vN)
 - `tools/set-current-task.js` : Tracking de la task courante
-- `tools/validate-file-scope.js` : Validation anti-derive
 - `tools/validate-code-quality.js` : Validation code vs specs (mode STRICT)
 - `tools/validate-structure.js` : Validation structure projet (Gate 1)
 - `tools/scan-secrets.js` : Scan secrets et PII (Gate 2)
@@ -73,6 +77,7 @@ Gate 0  Gate 1  Gate 2  Gate 3+4  Gate 5
 - `tools/list-active-adrs.js` : Listing et filtrage des ADR (actifs, superseded, par version)
 - `tools/extract-version-delta.js` : Extraction du delta d'une version depuis les specs (inline + marqueurs de bloc)
 - `tools/verify-pipeline.js` : Verification post-pipeline complete (toutes phases)
+- `tools/clean.js` : Reset projet en etat starter (`--force`, `--dry-run`)
 
 ## Permissions simplifiées
 
@@ -113,18 +118,23 @@ Le pipeline peut tracer tous les événements pour debugging ou audit.
 }
 ```
 
-**Événements trackés** :
-| Type | Description | Source |
-|------|-------------|--------|
-| `tool_invocation` | Invocation d'un tool | Hooks PreToolUse |
-| `file_written` | Fichier écrit | Hooks PostToolUse |
-| `template_used` | Template lu depuis templates/ | Hooks PreToolUse (Read) |
-| `gate_checked` | Vérification gate (0-5) | gate-check.js |
-| `skill_invoked` | Skill invoquée | Skills factory-* |
-| `agent_delegated` | Délégation agent | Skills factory-* |
-| `phase_started` | Début de phase | Skills factory-* |
-| `phase_completed` | Fin de phase | factory-log.js |
-| `task_completed` | Tâche implémentée | set-current-task.js |
+**Evenements trackes** :
+
+Les evenements sont collectes par deux mecanismes complementaires :
+- **Hooks** (automatiques) : evenements generiques fires par Claude Code
+- **Tools** (explicites) : evenements metier qui necessitent le resultat de l'operation
+
+| Type | Description | Source | Mecanisme |
+|------|-------------|--------|-----------|
+| `tool_invocation` | Invocation d'un tool | `pretooluse-security.js` | Hook |
+| `file_written` | Fichier ecrit | `posttooluse-validate.js` | Hook |
+| `template_used` | Template lu depuis templates/ | `pretooluse-security.js` | Hook |
+| `skill_invoked` | Skill invoquee | `pretooluse-skill.js` | Hook |
+| `phase_started` | Debut de phase | `pretooluse-skill.js` | Hook |
+| `agent_delegated` | Delegation agent | `subagentstart-track.js` | Hook |
+| `gate_checked` | Verification gate (0-5) | `gate-check.js` | Tool |
+| `phase_completed` | Fin de phase | `factory-log.js` | Tool |
+| `task_completed` | Tache implementee | `set-current-task.js` | Tool |
 
 **Commandes** :
 ```bash
@@ -146,127 +156,28 @@ node tools/instrumentation/reporter.js               # Rapport markdown
 
 ## Validation Code Quality (Gate 4)
 
-Le pipeline inclut une validation stricte du code généré contre les specs :
-
-| Critère | Seuil | Bloquant |
-|---------|-------|----------|
-| Couverture de tests (lignes) | ≥ 80% | Oui |
-| Couverture de tests (branches) | ≥ 75% | Oui |
-| Couverture de tests (fonctions) | ≥ 85% | Oui |
-| Types TypeScript | Strict (erreurs bloquantes) | Oui |
-| Conformité API specs | 100% | Oui |
-| Conformité Domain specs | 100% | Oui |
-| App assembly (composants/hooks) | ≥ 50% | Oui |
-| Boundaries architecturales | 0 violation | Oui |
-
-**Support Clean Architecture** : Les chemins sont lus depuis `docs/factory/project-config.json`.
-Si le fichier n'existe pas, les valeurs par défaut incluent `src/App.tsx` et `src/ui/App.tsx`.
-
-Usage : `node tools/validate-code-quality.js --gate4`
+Validation stricte du code genere : tests (>=80% lignes, >=75% branches, >=85% fonctions), TypeScript strict, conformite specs API/Domain, app assembly, boundaries architecturales.
+Seuils configurables dans `project-config.json`. Usage : `node tools/validate-code-quality.js --gate4`.
 
 ## Configuration Projet (project-config.json)
 
-Fichier généré par l'agent Architect pendant la phase MODEL.
-Centralise les chemins et seuils de validation pour le projet.
+Genere par l'Architect (phase MODEL). Centralise chemins et seuils de validation.
+Emplacement : `docs/factory/project-config.json`. Template : `templates/specs/project-config.json`.
+Les tools (`gate-check.js`, `validate-*.js`) lisent cette config au lieu de valeurs hardcodees.
 
-**Emplacement** : `docs/factory/project-config.json`
-**Template** : `templates/specs/project-config.json`
-**Lib** : `tools/lib/project-config.js`
+## Independence des Tasks (BMAD)
 
-```json
-{
-  "paths": {
-    "app": "src/ui/App.tsx",
-    "components": "src/ui/components/",
-    "hooks": "src/application/",
-    "constants": "src/domain/constants.ts"
-  },
-  "validation": {
-    "appAssembly": { "minLines": 10, "minComponentCoverage": 0.5 },
-    "codeQuality": { "testCoverage": 80, "noMagicNumbers": true }
-  }
-}
-```
-
-Les tools (`gate-check.js`, `validate-*.js`) lisent cette config au lieu d'avoir des valeurs hardcodées.
-
-## Indépendance des Tasks (BMAD)
-
-Chaque task est **100% auto-suffisante** selon le principe BMAD "hyper-detailed story files".
-
-Une task contient :
-- **Contexte complet** : Règles métier applicables (extraites des specs, pas de chemin vers les fichiers)
-- **Code existant** : Extraits pertinents (fichier:lignes)
-- **Fichiers concernés** : Liste exhaustive (anti-dérive)
-- **Tests attendus** : Pour validation automatique
-
-Le développeur peut implémenter une task SANS connaître les autres tasks.
-Le seul lien entre tasks = les artefacts partagés (specs, code généré).
-
-Template : `templates/planning/task-template.md`
+Chaque task est **100% auto-suffisante** (contexte complet, code existant, tests attendus).
+Le developpeur peut implementer une task SANS connaitre les autres. Template : `templates/planning/task-template.md`.
 
 ## Export Release (Gate 5)
 
-Le pipeline sépare automatiquement le **projet livrable** de l'**infrastructure factory**.
-
-**Exécution** :
-```bash
-node tools/export-release.js [--output <dir>] [--dry-run] [--validate]
-```
-
-**Méthode** : Exclusion-based (auto-découverte)
-- Tout ce qui n'est PAS factory est exporté automatiquement
-- Pas de liste hardcodée = générique pour tout projet
-
-**Exclusions factory** (toujours exclues) :
-| Type | Contenu |
-|------|---------|
-| Config CC | `.claude/` (agents, skills, rules, settings) |
-| Specs | `docs/` (specs, planning, ADR, QA) |
-| Outils | `tools/`, `templates/`, `input/` |
-| Fichiers | `CLAUDE.md`, `.env`, `package-lock.json` |
-| Générés | `node_modules/`, `dist/`, `coverage/`, `release/` |
-
-**README enrichi** : Généré automatiquement depuis les specs :
-- `docs/brief.md` → Section "À propos"
-- `docs/specs/api.md` → Section "API"
-- `docs/specs/domain.md` → Section "Architecture"
-- `docs/adr/*.md` → Section "Décisions techniques"
-
-**Output** :
-- `release/` : Dossier contenant le projet livrable
-- `docs/factory/release-manifest.json` : Traçabilité de l'export
+`node tools/export-release.js` separe le projet livrable de l'infrastructure factory (exclusion-based).
+Output dans `release/` avec README enrichi depuis les specs. Manifeste dans `docs/factory/release-manifest.json`.
 
 ## Evolution de projet (V2+)
 
-Le pipeline supporte l'evolution incrementale d'un projet existant.
-
-### Modes
-| Mode | Commande | Usage |
-|------|----------|-------|
-| **Greenfield** | `/factory` | Nouveau projet (V1) — auto-detect |
-| **Brownfield** | `/factory` | Evolution (V2, V3...) — auto-detect |
-
-### Structure versionnee
-```
-docs/planning/
-  v1/           # Cree par /factory
-    epics.md
-    us/
-    tasks/
-  v2/           # Cree par /factory
-    epics.md
-    us/
-    tasks/
-```
-
-### Requirements multiples
-```
-input/
-  requirements.md      # V1 (initial)
-  requirements-2.md    # V2 (evolution)
-  requirements-3.md    # V3 (evolution)
-```
+Le pipeline supporte l'evolution incrementale. `/factory` auto-detecte le mode (greenfield V1 / brownfield V2+).
 
 ### Strategie par type de document
 | Document | V1 | V2+ |
@@ -278,123 +189,22 @@ input/
 | QA reports | CREATE | CREATE (report-vN.md) |
 | CHANGELOG | CREATE | EDIT (prepend) |
 
-### Marqueurs de version dans les specs (V2+)
-
-Les agents qui EDITENT les specs/BREAK encadrent chaque ajout/modification avec des marqueurs HTML :
-
-```markdown
-<!-- V14:START -->
-Contenu ajoute ou modifie pour V14
-<!-- V14:END -->
-```
-
-Ces marqueurs sont **invisibles** dans le rendu markdown mais permettent :
-- **Extraction** : `node tools/extract-version-delta.js --version 14` extrait le delta
-- **Agents lecteurs** (scrum-master, factory-quick, rules-memory) : ne chargent que le delta pertinent
-- **Agents editeurs** (analyst, pm, architect) : continuent d'editer le fichier complet
-
-Les annotations inline `(VN)` restent recommandees **en complement** des marqueurs de bloc.
-
-```bash
-node tools/extract-version-delta.js                    # Delta version courante
-node tools/extract-version-delta.js --version 13       # Delta V13 specifique
-node tools/extract-version-delta.js --stats             # Stats toutes versions
-node tools/extract-version-delta.js -v 13 --json        # Output JSON
-```
-
-### Compteurs continus
-Les compteurs US/TASK sont **continus** entre versions :
-- V1 : TASK-0001 a TASK-0005
-- V2 : TASK-0006 a TASK-0010
-
-```bash
-node tools/factory-state.js counter task next  # Incremente et retourne
-node tools/factory-state.js counter task get   # Valeur actuelle
-```
+En brownfield, les agents encadrent chaque ajout avec des marqueurs `<!-- VN:START -->` / `<!-- VN:END -->`.
+Les compteurs (EPIC, US, TASK, ADR) sont continus entre versions via `factory-state.js counter`.
+Voir `input/README.md` pour les conventions de nommage des requirements.
 
 ## Quick Flow (BMAD)
 
-Pour les modifications mineures sans repasser par le pipeline complet.
-
-### Quand utiliser Quick vs Evolve
-
-| Critere | `/factory-quick` | `/factory` |
-|---------|------------------|-----------|
-| Fichiers impactes | <= 3 | > 3 |
-| Nouveau concept metier | Non | Oui |
-| Nouvel endpoint API | Non | Oui |
-| Nouvelle regle business | Non | Oui |
-| Modification specs | Non | Oui |
-
-### Detection automatique
-
-Si `/factory-quick` detecte que la modification necessite une mise a jour des specs :
-
-1. **Option A** : Generer `requirements-N.md` automatiquement (recommande)
-2. **Option B** : Creer manuellement puis `/factory`
-3. **Option C** : Forcer Quick (risque de derive)
-
-### Workflow Quick
-
-```
-Demande utilisateur
-       │
-       v
-  Analyse conformite specs
-       │
-       ├── Conforme → TASK directe → Implement → Gate 4 light → CHANGELOG
-       │
-       └── Non-conforme → Proposer options A/B/C
-                              │
-                              └── Option A → Generer requirements-N.md → /factory
-```
+`/factory-quick` pour les modifications mineures (<=3 fichiers, pas de nouveau concept metier/endpoint/regle).
+Si la modification impacte les specs, le skill propose de generer `requirements-N.md` et basculer vers `/factory`.
 
 ## Limites
 - Stack-agnostic (projet cible defini par ADR)
 - Pas de CI/CD integre (GitHub Actions a ajouter manuellement)
 
-## Templates de structure
+## Templates et Rules
 
-Les agents utilisent ces templates pour générer des documents conformes :
+Les templates sont dans `templates/` (break, specs, adr, planning, qa, release).
+Chaque agent connait ses templates depuis sa fiche dans `.claude/agents/`.
 
-### Phase BREAK (Analyst)
-| Template | Output |
-|----------|--------|
-| `templates/break/brief-template.md` | `docs/brief.md` |
-| `templates/break/scope-template.md` | `docs/scope.md` |
-| `templates/break/acceptance-template.md` | `docs/acceptance.md` |
-| `templates/break/questions-template.md` | `docs/factory/questions.md` |
-
-### Phase MODEL (PM, Architect, Rules-Memory)
-| Template | Agent | Output |
-|----------|-------|--------|
-| `templates/specs/system.md` | PM | `docs/specs/system.md` |
-| `templates/specs/domain.md` | PM | `docs/specs/domain.md` |
-| `templates/specs/api.md` | Architect | `docs/specs/api.md` |
-| `templates/specs/project-config.json` | Architect | `docs/factory/project-config.json` |
-| `templates/adr/ADR-template.md` | Architect | `docs/adr/ADR-*.md` |
-| `templates/rule.md` | Rules-Memory | `.claude/rules/*.md` |
-
-### Phase ACT-PLAN (Scrum Master)
-| Template | Output |
-|----------|--------|
-| `templates/planning/epics-template.md` | `docs/planning/vN/epics.md` |
-| `templates/planning/US-template.md` | `docs/planning/vN/us/US-*.md` |
-| `templates/planning/task-template.md` | `docs/planning/vN/tasks/TASK-*.md` |
-| `templates/planning/task-assembly-template.md` | `docs/planning/vN/tasks/TASK-*-app-assembly.md` |
-| `templates/testing/plan.md` | `docs/testing/plan.md` |
-
-> **Note** : `vN` = version courante (`v1`, `v2`...). Utiliser `node tools/get-planning-version.js` pour obtenir le chemin.
-
-### Phase DEBRIEF (QA)
-| Template | Output |
-|----------|--------|
-| `templates/qa/report-template.md` | `docs/qa/report.md` |
-| `templates/release/checklist-template.md` | `docs/release/checklist.md` |
-| `templates/release/CHANGELOG-template.md` | `CHANGELOG.md` |
-| `templates/release/README.template.md` | `release/README.md` |
-
-## Règles par domaine
-- `.claude/rules/factory-invariants.md` : Invariants pipeline
-- `.claude/rules/security-baseline.md` : Sécurité baseline
-- `.claude/rules/*.md` : Règles générées selon projet (basées sur requirements.md)
+Les rules dans `.claude/rules/` sont auto-chargees par Claude Code selon les `paths:` definis.

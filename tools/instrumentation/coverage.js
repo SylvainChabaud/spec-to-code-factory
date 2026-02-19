@@ -20,7 +20,6 @@ const INSTRUMENTATION_FILE = 'docs/factory/instrumentation.json';
  * Excluded:
  * - factory-reset.js: Only used with /reset command
  * - validate-commit-msg.js: Optional git hook
- * - validate-file-scope.js: Called by hooks, not gates (tracked indirectly)
  * - instrumentation/collector.js: The collector itself, always used
  */
 const KNOWN_ITEMS = {
@@ -117,8 +116,7 @@ function loadData() {
 
 /**
  * Extract used tools from events
- * Infers tool usage from gate checks and phase events
- * (Direct Bash tracking doesn't work because hooks don't capture command field)
+ * Infers tool usage from gate/phase/task events and Bash command parsing
  */
 function extractUsedTools(events) {
   const used = new Set();
@@ -162,6 +160,14 @@ function extractUsedTools(events) {
     // Task events indicate set-current-task.js usage
     if (event.type === 'task_completed') {
       used.add('set-current-task.js');
+    }
+
+    // Parse Bash commands for direct tool usage (e.g. 'node tools/detect-requirements.js')
+    if (event.type === 'tool_invocation' && event.data.command) {
+      const match = event.data.command.match(/node\s+tools\/([a-z0-9_-]+\.js)/);
+      if (match && KNOWN_ITEMS.tools.includes(match[1])) {
+        used.add(match[1]);
+      }
     }
   }
 

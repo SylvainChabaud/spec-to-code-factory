@@ -13,13 +13,6 @@ Aucun code dans src/ sans :
 Chaque commit DOIT référencer une TASK-XXXX.
 Format : `TASK-XXXX: description`
 
-## Anti-dérive agentique
-- **INTERDIT** : ajouter fonctionnalités non demandées
-- **INTERDIT** : refactor hors task dédiée
-- **INTERDIT** : "amélioration" non planifiée
-- **INTERDIT** : modifier fichiers hors scope task
-- **OBLIGATOIRE** : implémentation strictement alignée au plan
-
 ## Traçabilité
 Chaque TASK référence :
 - Son US parent

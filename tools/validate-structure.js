@@ -91,7 +91,26 @@ function getNamingConventions() {
 
 const NAMING_CONVENTIONS = getNamingConventions();
 
+/**
+ * Recursively check if a directory tree contains at least one *.test.* file
+ */
+function hasTestFiles(dir) {
+  if (!fs.existsSync(dir)) return false;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (hasTestFiles(path.join(dir, entry.name))) return true;
+    } else if (/\.test\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function validate() {
+  // Gate 4 mode : --gate4 flag active les verifications de tests
+  const isGate4 = process.argv.includes('--gate4');
+
   console.log('🔍 Validation de la structure du projet\n');
 
   const errors = [];
@@ -110,17 +129,18 @@ function validate() {
     }
   }
 
-  // Check co-located tests: each source layer in src/ must have __tests__/
-  if (srcExists) {
+  // Check co-located tests: each source layer in src/ must have *.test.* files
+  // Only enforced at Gate 4 (after code generation), not Gate 1
+  if (isGate4 && srcExists) {
     console.log('🧪 Vérification des tests co-localisés...');
     const srcEntries = fs.readdirSync('src', { withFileTypes: true });
     const sourceLayers = srcEntries
       .filter(e => e.isDirectory() && !e.name.startsWith('__'))
       .map(e => e.name);
     for (const layer of sourceLayers) {
-      const testsDir = path.join('src', layer, '__tests__');
-      if (!fs.existsSync(testsDir)) {
-        errors.push(`Tests manquants pour la couche ${layer}: ${testsDir}`);
+      const layerDir = path.join('src', layer);
+      if (!hasTestFiles(layerDir)) {
+        errors.push(`Tests manquants pour la couche ${layer}: aucun fichier *.test.* dans ${layerDir}`);
       }
     }
   }

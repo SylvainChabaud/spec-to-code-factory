@@ -48,9 +48,10 @@ function loadMarkdown(filePath) {
 
 /**
  * Extrait les fichiers concernés d'une task
+ * Supporte les variantes accentuees et non-accentuees
  */
 function extractTaskScope(taskContent) {
-  const scopeMatch = taskContent.match(/## Fichiers concernés[\s\S]*?(?=##|$)/);
+  const scopeMatch = taskContent.match(/## Fichiers concern[ée]s[\s\S]*?(?=\n## [^#]|$)/);
   if (!scopeMatch) return [];
 
   const files = [];
@@ -68,7 +69,7 @@ function extractTaskScope(taskContent) {
  * Extrait les tests attendus d'une task
  */
 function extractExpectedTests(taskContent) {
-  const testMatch = taskContent.match(/## Tests attendus[\s\S]*?(?=##|$)/);
+  const testMatch = taskContent.match(/## Tests attendus[\s\S]*?(?=\n## [^#]|$)/);
   if (!testMatch) return [];
 
   const tests = [];
@@ -190,10 +191,14 @@ function validateTestCoverage(taskFiles, expectedTests) {
     let partialMatch = false;
 
     // Extraire le sujet principal du test (premier mot significatif)
-    const subject = expectedTest
-      .replace(/^(test|verify|check|validate|ensure)\s+/i, '')
+    // Supprimer les prefixes markdown (checkbox, Test:, etc.)
+    const cleaned = expectedTest
+      .replace(/^\[[ x]\]\s*/i, '')
+      .replace(/^(Test|test|verify|check|validate|ensure)[:\s]+/i, '');
+    const subject = cleaned
       .split(/\s+/)[0]
-      .toLowerCase();
+      .toLowerCase()
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Echapper les caracteres regex
 
     for (const { content } of testContents) {
 
@@ -449,6 +454,11 @@ async function validateTask(taskFile) {
 
 /**
  * Mode Gate 4 - Validation globale avant QA
+ *
+ * Strategie d'optimisation :
+ *   - TypeScript (tsc --noEmit) et couverture (vitest --coverage)
+ *     sont des validations GLOBALES → executees UNE SEULE FOIS
+ *   - API compliance et tests attendus sont PER-TASK (lecture fichiers, rapide)
  */
 async function validateGate4() {
   console.log('\n🔍 Gate 4 - Validation Code Quality (Mode STRICT)\n');
@@ -468,17 +478,88 @@ async function validateGate4() {
 
   console.log(`Tasks à valider: ${taskFiles.length}\n`);
 
-  let totalErrors = 0;
-  let totalWarnings = 0;
+  const globalErrors = [];
+  const globalWarnings = [];
+
+  // --- Validations GLOBALES (une seule fois) ---
+
+  // 1. TypeScript
+  console.log('📝 Vérification TypeScript (global)...');
+  const tsResult = validateTypeScript(
+    taskFiles.flatMap(f => {
+      const content = loadMarkdown(f);
+      return content ? extractTaskScope(content) : [];
+    })
+  );
+  if (!tsResult.passed && !tsResult.skipped) {
+    globalErrors.push(...tsResult.errors);
+    globalWarnings.push(...tsResult.warnings);
+    console.log(`   ❌ ${tsResult.errors.length} erreur(s) TypeScript\n`);
+  } else if (tsResult.skipped) {
+    console.log('   ⚠️  TypeScript skip (pas de .ts/.tsx ou tsconfig)\n');
+  } else {
+    console.log('   ✅ TypeScript OK\n');
+  }
+
+  // 2. Couverture
+  console.log('📊 Vérification couverture (global)...');
+  const covResult = validateCoverageThreshold();
+  if (!covResult.passed) {
+    globalErrors.push(...covResult.errors);
+    globalWarnings.push(...covResult.warnings);
+    console.log(`   ❌ ${covResult.errors.length} erreur(s) couverture\n`);
+  } else {
+    const cov = covResult.coverage || {};
+    console.log(`   ✅ Couverture OK (L:${cov.lines?.toFixed(1) ?? '?'}% B:${cov.branches?.toFixed(1) ?? '?'}% F:${cov.functions?.toFixed(1) ?? '?'}%)\n`);
+  }
+
+  // --- Validations PER-TASK (rapides, lecture fichiers) ---
+
+  let totalErrors = globalErrors.length;
+  let totalWarnings = globalWarnings.length;
   const failedTasks = [];
 
-  for (const taskFile of taskFiles) {
-    const result = await validateTask(taskFile);
-    totalErrors += result.errors?.length || 0;
-    totalWarnings += result.warnings?.length || 0;
+  const apiSpec = loadMarkdown('docs/specs/api.md');
 
-    if (!result.passed) {
-      failedTasks.push(path.basename(taskFile));
+  for (const taskFile of taskFiles) {
+    const taskName = path.basename(taskFile);
+    const taskContent = loadMarkdown(taskFile);
+    if (!taskContent) {
+      totalErrors++;
+      failedTasks.push(taskName);
+      continue;
+    }
+
+    const taskScope = extractTaskScope(taskContent);
+    const expectedTests = extractExpectedTests(taskContent);
+    const taskErrors = [];
+    const taskWarnings = [];
+
+    // API compliance (lecture fichiers, rapide)
+    if (apiSpec) {
+      const apiResult = validateApiCompliance(taskScope, apiSpec);
+      taskErrors.push(...apiResult.errors);
+      taskWarnings.push(...apiResult.warnings);
+    }
+
+    // Tests attendus (lecture fichiers, rapide)
+    // Si la couverture globale passe, les erreurs per-task deviennent des warnings
+    // car le fuzzy matching peut manquer des correspondances (noms FR vs EN)
+    const testResult = validateTestCoverage(taskScope, expectedTests);
+    if (covResult.passed) {
+      // Couverture globale OK: per-task test matching errors deviennent warnings
+      taskWarnings.push(...testResult.errors);
+    } else {
+      taskErrors.push(...testResult.errors);
+    }
+    taskWarnings.push(...testResult.warnings);
+
+    totalErrors += taskErrors.length;
+    totalWarnings += taskWarnings.length;
+
+    if (taskErrors.length > 0) {
+      failedTasks.push(taskName);
+      console.log(`   ❌ ${taskName}: ${taskErrors.join('; ')}`);
     }
   }
 
@@ -490,9 +571,15 @@ async function validateGate4() {
   console.log(`Erreurs critiques: ${totalErrors}`);
   console.log(`Avertissements: ${totalWarnings}`);
 
-  if (failedTasks.length > 0) {
-    console.log(`\nTasks en échec:`);
-    failedTasks.forEach(t => console.log(`   - ${t}`));
+  if (totalErrors > 0) {
+    if (failedTasks.length > 0) {
+      console.log(`\nTasks en échec:`);
+      failedTasks.forEach(t => console.log(`   - ${t}`));
+    }
+    if (globalErrors.length > 0) {
+      console.log(`\nErreurs globales:`);
+      globalErrors.forEach(e => console.log(`   - ${e}`));
+    }
     console.log('\n❌ Gate 4 FAIL (mode STRICT)');
     process.exit(2);
   }

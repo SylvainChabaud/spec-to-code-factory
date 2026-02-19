@@ -200,7 +200,7 @@ Si Quick OK ou force :
    - DoD minimale
    - Tests attendus
 
-3. **Activer le tracking anti-derive** :
+3. **Activer le tracking instrumentation** :
    ```bash
    node tools/set-current-task.js set docs/planning/vN/tasks/TASK-XXXX-quick-fix.md
    ```
@@ -216,7 +216,7 @@ Si Quick OK ou force :
    )
    ```
 
-5. **Desactiver le tracking anti-derive** :
+5. **Desactiver le tracking instrumentation** :
    ```bash
    node tools/set-current-task.js clear
    ```
@@ -322,10 +322,3 @@ Inchange - voir V1
 - Specs synchronisees
 ```
 
-## Anti-derive
-
-- Quick = max 3 fichiers modifies
-- Quick = pas de nouveau concept metier
-- Quick = pas de nouvel endpoint API
-- Si doute → proposer Evolve
-- Toujours logger dans CHANGELOG avec tag [Quick]

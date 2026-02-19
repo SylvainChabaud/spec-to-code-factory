@@ -180,8 +180,3 @@ Quand une version SUPPRIME un critere ou une fonctionnalite :
 - **NE PAS** utiliser `~~strikethrough~~` ni `SUPPRIME VN`
 - L'historique git conserve la traçabilite
 
-## Anti-dérive
-- Ne PAS inventer de fonctionnalités non mentionnées
-- Ne PAS faire d'hypothèses implicites
-- Ne PAS continuer sans avoir posé les questions critiques
-- Rester fidèle au requirements.md + réponses utilisateur

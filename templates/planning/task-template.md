@@ -62,7 +62,18 @@
 [Extrait de code pertinent]
 ```
 
-### Dépendances
+### Packages npm requis
+
+> Packages à installer pour cette task. Le développeur DOIT les ajouter à `package.json`.
+
+| Package | Type | Commande |
+|---------|------|----------|
+| `[package-name]` | runtime | `pnpm add [package-name]` |
+| `@types/[package-name]` | dev | `pnpm add -D @types/[package-name]` |
+
+> Si aucun nouveau package : indiquer "Aucun nouveau package requis".
+
+### Dépendances entre tasks
 
 | Type | Élément | Statut |
 |------|---------|--------|
@@ -75,7 +86,6 @@
 ## Fichiers concernés
 
 > Liste exhaustive des fichiers à créer/modifier/supprimer.
-> L'anti-dérive bloquera toute modification hors de cette liste.
 
 ### Fichiers à créer
 - `src/xxx/nouveau-fichier.ts`
@@ -124,7 +134,8 @@
 - [ ] Tests unitaires écrits et passants
 - [ ] Pas de régression sur les tests existants
 - [ ] Code conforme aux règles métier applicables
-- [ ] Pas de fichiers hors scope modifiés
+- [ ] Packages npm installés et déclarés dans `package.json`
+- [ ] `pnpm build` compile sans erreur (si applicable)
 - [ ] Règles de dépendance inter-couches respectées
 - [ ] TypeScript compile sans erreur (si applicable)
 - [ ] Linting passe (si applicable)

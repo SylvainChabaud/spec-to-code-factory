@@ -97,7 +97,7 @@ Décomposer les specs en epics/US/tasks implémentables.
   * ADR applicables AVEC impact sur la task
   * Extraits de code existant (fichier:lignes + snippet)
   * Dépendances (tasks prérequises, modules, APIs)
-- **Fichiers concernés** : Liste exhaustive (anti-dérive)
+- **Fichiers concernés** : Liste exhaustive
 - **Plan d'implémentation** : Étapes ordonnées
 - **Definition of Done** : Checklist complète
 - **Tests attendus** : Liste pour validation automatique
@@ -111,6 +111,3 @@ Numéroter les tasks dans l'ordre d'exécution logique (TASK-0001, TASK-0002...)
 
 En mode brownfield, le plan de test (`docs/testing/plan.md`) doit etre **EDIT** (enrichi avec les nouveaux cas de test de la version courante), pas ignore ni recree de zero. Ajouter les nouveaux scenarios de test tout en conservant les tests existants.
 
-## Anti-dérive
-- Ne PAS créer de tasks hors specs
-- Tasks granulaires (max 1-2h de travail idéalement)

@@ -75,6 +75,3 @@ Quand une version SUPPRIME un concept (entite, constante, regle metier) :
 - **NE PAS** utiliser `~~strikethrough~~` ni `SUPPRIME VN` — cela pollue le contexte
 - L'historique git conserve la traçabilite (pas besoin de garder le texte barre)
 
-## Anti-dérive
-- Ne PAS ajouter de features hors scope
-- Ne PAS anticiper des besoins non exprimés

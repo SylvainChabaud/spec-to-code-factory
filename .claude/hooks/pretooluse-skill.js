@@ -39,18 +39,46 @@ try {
   process.exit(0);
 }
 
-// Instrumentation: record skill invocation (opt-in)
+// Instrumentation: record skill invocation + phase-start (opt-in)
 if (isEnabled() && input.tool_input?.skill) {
+  const skillName = input.tool_input.skill;
+
+  // Reset instrumentation for a clean timeline when starting a new pipeline
+  if (skillName === 'factory') {
+    try {
+      execSync('node tools/instrumentation/collector.js reset', {
+        stdio: 'ignore', timeout: 1000
+      });
+    } catch (e) { /* silent fail */ }
+  }
+
+  // Record skill invocation
   try {
-    const data = JSON.stringify({
-      skill: input.tool_input.skill,
-      parentSkill: null
-    });
+    const data = JSON.stringify({ skill: skillName, parentSkill: null });
     execSync(`node tools/instrumentation/collector.js skill "${data.replace(/"/g, '\\"')}"`, {
       stdio: 'ignore',
       timeout: 1000
     });
   } catch (e) { /* silent fail */ }
+
+  // Record phase-start for phase skills (replaces manual calls in SKILL.md)
+  const SKILL_PHASE_MAP = {
+    'factory-intake': 'BREAK',
+    'factory-spec': 'MODEL',
+    'factory-plan': 'ACT_PLAN',
+    'factory-build': 'ACT_BUILD',
+    'factory-qa': 'DEBRIEF'
+  };
+  const phase = SKILL_PHASE_MAP[skillName];
+  if (phase) {
+    try {
+      const data = JSON.stringify({ phase, skill: skillName });
+      execSync(`node tools/instrumentation/collector.js phase-start "${data.replace(/"/g, '\\"')}"`, {
+        stdio: 'ignore',
+        timeout: 1000
+      });
+    } catch (e) { /* silent fail */ }
+  }
 }
 
 // Allow skill to proceed

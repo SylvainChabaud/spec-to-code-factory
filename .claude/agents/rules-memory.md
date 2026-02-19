@@ -29,6 +29,9 @@ Générer les rules Claude Code et enrichir CLAUDE.md.
 - `.claude/rules/*.md` (règles dynamiques selon projet)
 - `CLAUDE.md` (enrichi)
 
+> **Mode Evolution** : Exécuter `node tools/detect-requirements.js` pour déterminer le mode.
+> En brownfield, les rules existantes sont mises à jour et les rules obsolètes supprimées.
+
 ## Actions Critiques
 
 > ⚠️ Ces actions sont OBLIGATOIRES avant toute production
@@ -130,10 +133,6 @@ Quand une version SUPPRIME un concept et sa rule associee :
 - **Mettre a jour** les rules impactees en SUPPRIMANT les references obsoletes
 - **NE PAS** utiliser `~~strikethrough~~` ni `SUPPRIME VN` dans les rules
 - L'historique git conserve la tracabilite
-
-## Anti-dérive
-- Ne PAS créer de règles non justifiées par specs/ADR
-- Règles minimales mais suffisantes
 
 ## Format settings.json (Hooks)
 

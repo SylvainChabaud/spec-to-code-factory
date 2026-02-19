@@ -114,7 +114,8 @@ const GATES = {
     codeQuality: true, // Vérifie conformité code/specs (mode STRICT)
     appAssembly: true, // Vérifie que App.tsx assemble les composants
     boundaryCheck: true, // Vérifie les règles d'import inter-couches
-    testingPlanContent: true // Vérifie le contenu de testing/plan.md (pas juste existence)
+    testingPlanContent: true, // Vérifie le contenu de testing/plan.md (pas juste existence)
+    projectHealth: true // Vérifie que le projet compile (dependencies + build)
   },
   5: {
     name: 'QA → Release',
@@ -129,7 +130,7 @@ const GATES = {
             'CHANGELOG.md'
           ],
           sections: {
-            'docs/qa/report.md': ['## Résumé', '## Tests exécutés'],
+            'docs/qa/report.md': ['## Résumé exécutif', '## Tests exécutés'],
             'docs/release/checklist.md': ['## Pré-release'],
             'CHANGELOG.md': ['## [']
           }
@@ -144,8 +145,8 @@ const GATES = {
           'CHANGELOG.md'
         ],
         sections: {
-          [`docs/qa/report-v${version}.md`]: [/## R[ée]sum[ée]/, /## Tests ex[ée]cut[ée]s/],
-          [`docs/release/checklist-v${version}.md`]: [/## Pr[ée]-release/],
+          [`docs/qa/report-v${version}.md`]: ['## Résumé exécutif', '## Tests exécutés'],
+          [`docs/release/checklist-v${version}.md`]: ['## Pré-release'],
           'CHANGELOG.md': ['## [']
         }
       };
@@ -283,7 +284,10 @@ function runProjectConfigValidation() {
     const content = fs.readFileSync(configPath, 'utf-8');
     const config = JSON.parse(content);
 
-    // Check required fields
+    // Check required fields (tolerate both projectName and project.name)
+    if (!config.projectName && config.project?.name) {
+      config.projectName = config.project.name;
+    }
     const requiredFields = ['projectName', 'architecture'];
     const missingFields = requiredFields.filter(f => !config[f]);
 
@@ -450,7 +454,7 @@ function validateTestsExecution() {
   const qaContent = fs.readFileSync(qaReportPath, 'utf-8');
 
   // Check that QA report contains test results section (tolerate accented/non-accented)
-  if (!/## Tests ex[ée]cut[ée]s/i.test(qaContent) && !qaContent.includes('## Test Results')) {
+  if (!qaContent.includes('## Tests exécutés')) {
     return {
       success: false,
       error: 'Section "Tests exécutés" manquante dans le rapport QA'
@@ -745,6 +749,102 @@ function runAppAssemblyValidation() {
 }
 
 /**
+ * Run project health validation (Gate 4)
+ * Checks that package.json has dependencies and that the project builds
+ */
+function runProjectHealthValidation() {
+  if (!fs.existsSync('src')) {
+    return { success: true, skipped: true, reason: 'No src/ directory found' };
+  }
+
+  console.log('  Validating project health (dependencies + build)...');
+
+  const errors = [];
+
+  // 1. Check package.json has dependencies
+  try {
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+    const deps = Object.keys(pkg.dependencies || {});
+    const devDeps = Object.keys(pkg.devDependencies || {});
+
+    if (deps.length === 0 && devDeps.length === 0) {
+      errors.push('package.json has no dependencies nor devDependencies');
+    }
+  } catch (e) {
+    errors.push(`package.json unreadable: ${e.message}`);
+  }
+
+  // 2. Check imports match installed packages
+  try {
+    const srcFiles = [];
+    function walkSrc(dir) {
+      if (!fs.existsSync(dir)) return;
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'node_modules') continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walkSrc(full);
+        else if (/\.(ts|tsx|js|jsx)$/.test(entry.name)) srcFiles.push(full);
+      }
+    }
+    walkSrc('src');
+
+    const externalImports = new Set();
+    const importRegex = /(?:import|from)\s+['"]([^./][^'"]*)['"]/g;
+    for (const file of srcFiles) {
+      const content = fs.readFileSync(file, 'utf-8');
+      let match;
+      while ((match = importRegex.exec(content)) !== null) {
+        // Extract package name (handle scoped packages @org/pkg)
+        const raw = match[1];
+        const pkgName = raw.startsWith('@')
+          ? raw.split('/').slice(0, 2).join('/')
+          : raw.split('/')[0];
+        externalImports.add(pkgName);
+      }
+    }
+
+    if (externalImports.size > 0) {
+      const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+      const allDeps = {
+        ...pkg.dependencies,
+        ...pkg.devDependencies
+      };
+      const missing = [...externalImports].filter(imp => !allDeps[imp]);
+      if (missing.length > 0) {
+        errors.push(`Packages imported in src/ but missing from package.json: ${missing.join(', ')}`);
+      }
+    }
+  } catch (e) {
+    // Non-blocking: import scanning is best-effort
+    console.log(`  ⚠️  Import scanning error: ${e.message}`);
+  }
+
+  // 3. Check pnpm build compiles (if script exists)
+  try {
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+    if (pkg.scripts?.build) {
+      console.log('  Running pnpm build...');
+      execSync('pnpm build', {
+        stdio: 'pipe',
+        encoding: 'utf-8',
+        timeout: 120000
+      });
+    }
+  } catch (e) {
+    errors.push(`pnpm build failed: ${(e.stderr || e.message).substring(0, 500)}`);
+  }
+
+  if (errors.length > 0) {
+    return {
+      success: false,
+      error: errors.join(' | ')
+    };
+  }
+
+  return { success: true };
+}
+
+/**
  * Run boundary validation (Gate 4)
  * Validates architectural layer import rules
  */
@@ -818,6 +918,20 @@ function runExportRelease() {
   }
 }
 
+// Map fichier → template pour guider le retry des agents
+const TEMPLATE_MAP = {
+  'docs/brief.md': 'templates/break/brief-template.md',
+  'docs/scope.md': 'templates/break/scope-template.md',
+  'docs/acceptance.md': 'templates/break/acceptance-template.md',
+  'docs/specs/system.md': 'templates/specs/system.md',
+  'docs/specs/domain.md': 'templates/specs/domain.md',
+  'docs/specs/api.md': 'templates/specs/api.md',
+  'docs/qa/report.md': 'templates/qa/report-template.md',
+  'docs/release/checklist.md': 'templates/release/checklist-template.md',
+  'docs/testing/plan.md': 'templates/testing/plan.md',
+  'CHANGELOG.md': 'templates/release/CHANGELOG-template.md'
+};
+
 async function checkGate(gateNum) {
   const gate = GATES[gateNum];
   if (!gate) {
@@ -825,9 +939,19 @@ async function checkGate(gateNum) {
     process.exit(1);
   }
 
+  // --json mode: structured output, suppress human-readable logs
+  const jsonMode = process.argv.includes('--json');
+  const _log = console.log;
+  if (jsonMode) console.log = () => {};
+
   console.log(`\n🔍 Vérification Gate ${gateNum}: ${gate.name}\n`);
 
   const errors = [];
+
+  // Helper: push structured error { message, category, fixable }
+  function addError(message, category, fixable = true) {
+    errors.push({ message, category, fixable });
+  }
 
   // Get dynamic config if available (for versioned gates like Gate 0, 3, 5)
   let files = gate.files || [];
@@ -845,7 +969,7 @@ async function checkGate(gateNum) {
   if (files.length > 0) {
     for (const file of files) {
       if (!fileExists(file)) {
-        errors.push(`Fichier manquant: ${file}`);
+        addError(`Fichier manquant: ${file}`, 'missing_file');
       }
     }
   }
@@ -855,7 +979,7 @@ async function checkGate(gateNum) {
     for (const p of patterns) {
       const matches = globFiles(p.glob);
       if (matches.length < p.min) {
-        errors.push(`Pattern ${p.glob}: ${matches.length} fichier(s), minimum ${p.min} requis`);
+        addError(`Pattern ${p.glob}: ${matches.length} fichier(s), minimum ${p.min} requis`, 'missing_pattern');
       }
     }
   }
@@ -865,7 +989,12 @@ async function checkGate(gateNum) {
     for (const [file, sectionList] of Object.entries(sections)) {
       for (const section of sectionList) {
         if (!hasSection(file, section)) {
-          errors.push(`Section manquante dans ${file}: ${section}`);
+          const template = TEMPLATE_MAP[file] || null;
+          addError(
+            `Section manquante dans ${file}: ${section}` +
+              (template ? ` (ref: ${template})` : ''),
+            'missing_section'
+          );
         }
       }
     }
@@ -876,7 +1005,7 @@ async function checkGate(gateNum) {
     const reqFile = dynamicConfig.detectedFile;
     const reqResult = runRequirementsValidation(reqFile);
     if (!reqResult.success) {
-      errors.push(`Requirements validation: ${reqResult.error}`);
+      addError(`Requirements validation: ${reqResult.error}`, 'requirements', false);
       if (reqResult.stdout) {
         console.log('\n--- Requirements Validation Output ---');
         console.log(reqResult.stdout.substring(0, 1500));
@@ -892,7 +1021,7 @@ async function checkGate(gateNum) {
   if (gate.structureValidation) {
     const structResult = runStructureValidation();
     if (!structResult.success && !structResult.skipped) {
-      errors.push(`Structure validation: ${structResult.error}`);
+      addError(`Structure validation: ${structResult.error}`, 'structure');
       if (structResult.stdout) {
         console.log('\n--- Structure Validation Output ---');
         console.log(structResult.stdout.substring(0, 1000));
@@ -909,7 +1038,8 @@ async function checkGate(gateNum) {
   if (gate.secretsScan) {
     const secretsResult = runSecretsScan();
     if (!secretsResult.success && !secretsResult.skipped) {
-      errors.push(`Secrets scan: ${secretsResult.error}`);
+      const isFixable = secretsResult.severity !== 'critical';
+      addError(`Secrets scan: ${secretsResult.error}`, 'security', isFixable);
       if (secretsResult.stdout) {
         console.log('\n--- Secrets Scan Output ---');
         console.log(secretsResult.stdout.substring(0, 1000));
@@ -926,7 +1056,7 @@ async function checkGate(gateNum) {
   if (gate.projectConfigValidation) {
     const configResult = runProjectConfigValidation();
     if (!configResult.success) {
-      errors.push(`Project config validation: ${configResult.error}`);
+      addError(`Project config validation: ${configResult.error}`, 'config');
     } else {
       console.log('  ✅ project-config.json valide\n');
     }
@@ -936,9 +1066,9 @@ async function checkGate(gateNum) {
   if (gate.adrVersionValidation && dynamicConfig.adrVersionCheck) {
     const adrCheck = dynamicConfig.adrVersionCheck;
     if (adrCheck.count === 0) {
-      errors.push(
-        `Aucun ADR actif pour V${adrCheck.version}. ` +
-        `Au moins 1 ADR requis pour la version courante.`
+      addError(
+        `Aucun ADR actif pour V${adrCheck.version}. Au moins 1 ADR requis pour la version courante.`,
+        'missing_file'
       );
     } else {
       const names = adrCheck.adrs.map(a => a.id || a).join(', ');
@@ -957,7 +1087,7 @@ async function checkGate(gateNum) {
       }
     }
     if (invalidTasks.length > 0) {
-      errors.push(`Task(s) incomplète(s) (DoD/Tests manquants): ${invalidTasks.join(', ')}`);
+      addError(`Task(s) incomplète(s) (DoD/Tests manquants): ${invalidTasks.join(', ')}`, 'task_incomplete');
     } else if (tasks.length > 0) {
       console.log(`  ✅ ${tasks.length} task(s) avec DoD et Tests valides\n`);
     }
@@ -968,7 +1098,7 @@ async function checkGate(gateNum) {
     const planningDir = getPlanningDir();
     const usRefResult = validateTaskUsReferences(planningDir);
     if (!usRefResult.success && !usRefResult.skipped) {
-      errors.push(`Task US references: ${usRefResult.error}`);
+      addError(`Task US references: ${usRefResult.error}`, 'task_references');
       if (usRefResult.details) {
         console.log('\n--- Task US References Errors ---');
         usRefResult.details.slice(0, 10).forEach(d => console.log(`  - ${d}`));
@@ -984,11 +1114,24 @@ async function checkGate(gateNum) {
     }
   }
 
+  // Project health validation (Gate 4) - dependencies + build
+  if (gate.projectHealth) {
+    const healthResult = runProjectHealthValidation();
+    if (!healthResult.success && !healthResult.skipped) {
+      addError(`Project health: ${healthResult.error}`, 'project_health');
+    } else if (healthResult.skipped) {
+      const reason = healthResult.reason || 'skipped';
+      console.log(`  ⚠️  Project health validation skipped (${reason})\n`);
+    } else {
+      console.log('  ✅ Project health PASS (dependencies + build)\n');
+    }
+  }
+
   // Tests validation (Gate 4) - with retry logic
   if (gate.testsPass) {
     const testResult = await runTestsWithRetry(3, 2000);
     if (!testResult.success) {
-      errors.push(`Tests échoués: ${testResult.error}`);
+      addError(`Tests échoués: ${testResult.error}`, 'test_failure');
       if (testResult.stderr) {
         console.log('\n--- Test Output ---');
         console.log(testResult.stderr.substring(0, 1000)); // Limit output
@@ -1007,7 +1150,7 @@ async function checkGate(gateNum) {
   if (gate.codeQuality) {
     const qualityResult = await runCodeQualityValidation();
     if (!qualityResult.success) {
-      errors.push(`Code quality validation échouée: ${qualityResult.error}`);
+      addError(`Code quality validation échouée: ${qualityResult.error}`, 'quality');
       if (qualityResult.stdout) {
         console.log('\n--- Code Quality Output ---');
         console.log(qualityResult.stdout.substring(0, 2000)); // Limit output
@@ -1025,7 +1168,7 @@ async function checkGate(gateNum) {
   if (gate.appAssembly) {
     const assemblyResult = runAppAssemblyValidation();
     if (!assemblyResult.success && !assemblyResult.skipped) {
-      errors.push(`App assembly validation échouée: ${assemblyResult.error}`);
+      addError(`App assembly validation échouée: ${assemblyResult.error}`, 'assembly');
       if (assemblyResult.stdout) {
         console.log('\n--- App Assembly Output ---');
         console.log(assemblyResult.stdout.substring(0, 2000));
@@ -1054,7 +1197,7 @@ async function checkGate(gateNum) {
       if (taskFiles.length > 0) {
         const lastTask = taskFiles[taskFiles.length - 1];
         if (!lastTask.includes('app-assembly')) {
-          errors.push(`La task d'assemblage doit etre la derniere numeriquement. Derniere task: ${lastTask}`);
+          addError(`La task d'assemblage doit etre la derniere numeriquement. Derniere task: ${lastTask}`, 'assembly');
         } else {
           console.log(`  ✅ Task app-assembly est la derniere task (${lastTask})\n`);
         }
@@ -1066,7 +1209,7 @@ async function checkGate(gateNum) {
   if (gate.boundaryCheck) {
     const boundaryResult = runBoundaryValidation();
     if (!boundaryResult.success && !boundaryResult.skipped) {
-      errors.push(`Boundary validation échouée: ${boundaryResult.error}`);
+      addError(`Boundary validation échouée: ${boundaryResult.error}`, 'boundary');
       if (boundaryResult.stdout) {
         console.log('\n--- Boundary Validation Output ---');
         console.log(boundaryResult.stdout.substring(0, 2000));
@@ -1084,7 +1227,7 @@ async function checkGate(gateNum) {
   if (gate.testingPlanContent) {
     const planContentResult = validateTestingPlanContent();
     if (!planContentResult.success) {
-      errors.push(`Testing plan content: ${planContentResult.error}`);
+      addError(`Testing plan content: ${planContentResult.error}`, 'testing_plan');
     } else {
       console.log('  ✅ testing/plan.md contenu valide\n');
     }
@@ -1094,7 +1237,7 @@ async function checkGate(gateNum) {
   if (gate.testsExecution) {
     const execResult = validateTestsExecution();
     if (!execResult.success) {
-      errors.push(`Tests execution: ${execResult.error}`);
+      addError(`Tests execution: ${execResult.error}`, 'test_execution');
     } else {
       console.log(`  ✅ Tests exécutés (${execResult.testFilesCount} fichiers de test)\n`);
     }
@@ -1104,7 +1247,7 @@ async function checkGate(gateNum) {
   if (gate.exportRelease && errors.length === 0) {
     const exportResult = runExportRelease();
     if (!exportResult.success && !exportResult.skipped) {
-      errors.push(`Export release échoué: ${exportResult.error}`);
+      addError(`Export release échoué: ${exportResult.error}`, 'export');
       if (exportResult.stdout) {
         console.log('\n--- Export Output ---');
         console.log(exportResult.stdout.substring(0, 2000));
@@ -1122,7 +1265,8 @@ async function checkGate(gateNum) {
   if (isEnabled()) {
     try {
       const status = errors.length === 0 ? 'PASS' : 'FAIL';
-      const data = JSON.stringify({ gate: gateNum, status, errors });
+      const errMessages = errors.map(e => e.message);
+      const data = JSON.stringify({ gate: gateNum, status, errors: errMessages });
       // Use double quotes for Windows compatibility
       execSync(`node tools/instrumentation/collector.js gate "${data.replace(/"/g, '\\"')}"`, {
         stdio: 'ignore',
@@ -1134,16 +1278,36 @@ async function checkGate(gateNum) {
   }
 
   // Report results
+  const status = errors.length === 0 ? 'PASS' : 'FAIL';
+  const exitCode = errors.length === 0 ? 0 : 2;
+
+  if (jsonMode) {
+    // Restore console.log for JSON output
+    console.log = _log;
+    const result = {
+      gate: gateNum,
+      name: gate.name,
+      status,
+      errors,
+      summary: {
+        total: errors.length,
+        fixable: errors.filter(e => e.fixable).length,
+        blocking: errors.filter(e => !e.fixable).length
+      }
+    };
+    console.log(JSON.stringify(result));
+    process.exit(exitCode);
+  }
+
   if (errors.length === 0) {
     console.log(`✅ Gate ${gateNum} PASS\n`);
-    process.exit(0);
   } else {
     console.log(`❌ Gate ${gateNum} FAIL\n`);
     console.log('Erreurs:');
-    errors.forEach(e => console.log(`  - ${e}`));
+    errors.forEach(e => console.log(`  - ${e.message}`));
     console.log('');
-    process.exit(2);
   }
+  process.exit(exitCode);
 }
 
 // Main

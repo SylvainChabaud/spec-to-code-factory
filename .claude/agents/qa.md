@@ -97,6 +97,3 @@ Valider, tester, documenter la release.
 -
 ```
 
-## Anti-dérive
-- Ne PAS modifier le code (sauf bugs critiques bloquants)
-- Documenter les issues, ne pas les résoudre

@@ -180,7 +180,6 @@ const { notes, addNote } = useNotes();
 - [ ] `npm run build` passe sans erreur TypeScript
 - [ ] `npm test` passe (tous les tests)
 - [ ] L'application se lance (`npm run dev`) et est navigable
-- [ ] Pas de fichiers hors scope modifiés
 - [ ] App.tsx a au moins 50 lignes (pas un stub)
 
 ---

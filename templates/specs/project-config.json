@@ -2,6 +2,8 @@
   "$schema": "./project-config.schema.json",
   "_comment": "Configuration projet generee par l'agent Architect pendant la phase MODEL",
 
+  "projectName": "{{NOM_PROJET}}",
+
   "project": {
     "name": "{{NOM_PROJET}}",
     "version": "1.0.0",
